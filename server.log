@@ -1,0 +1,85 @@
+warning: calls to `std::mem::drop` with a reference instead of an owned value does nothing
+  --> matching/src/lib.rs:88:33
+   |
+88 | ...                   drop(queue);
+   |                       ^^^^^-----^
+   |                            |
+   |                            argument has type `&mut VecDeque<OrderEntry>`
+   |
+   = note: `#[warn(dropping_references)]` on by default
+help: use `let _ = ...` to ignore the expression or result
+   |
+88 -                                 drop(queue);
+88 +                                 let _ = queue;
+   |
+
+warning: calls to `std::mem::drop` with a reference instead of an owned value does nothing
+   --> matching/src/lib.rs:147:33
+    |
+147 | ...                   drop(queue);
+    |                       ^^^^^-----^
+    |                            |
+    |                            argument has type `&mut VecDeque<OrderEntry>`
+    |
+help: use `let _ = ...` to ignore the expression or result
+    |
+147 -                                 drop(queue);
+147 +                                 let _ = queue;
+    |
+
+warning: `matching` (lib) generated 2 warnings
+warning: unused import: `OrderBook`
+ --> api/src/main.rs:9:45
+  |
+9 | use matching::{MarketBooks, MarketSnapshot, OrderBook, OrderEntry, Side, SnapshotData, Trade};
+  |                                             ^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unused variable: `id`
+   --> api/src/main.rs:156:10
+    |
+156 |     let (id, trades, rem) = resp_rx
+    |          ^^ help: if this is intentional, prefix it with an underscore: `_id`
+    |
+    = note: `#[warn(unused_variables)]` on by default
+
+warning: variant `CloseOrder` is never constructed
+  --> api/src/main.rs:22:5
+   |
+15 | enum EngineMsg {
+   |      --------- variant in this enum
+...
+22 |     CloseOrder {
+   |     ^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: field `user_id` is never read
+  --> api/src/main.rs:93:5
+   |
+92 | struct PlaceOrderReq {
+   |        ------------- field in this struct
+93 |     user_id: String,
+   |     ^^^^^^^
+
+warning: `api` (bin "api") generated 4 warnings (run `cargo fix --bin "api"` to apply 1 suggestion)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.15s
+     Running `target/debug/api`
+[api/src/main.rs:50:21] &trades = OrderEntry {
+    id: c8e1acfd-56d7-4463-a1d7-8348393cffad,
+    user_id: "user_id",
+    market_id: "asdwf",
+    price: 121.2,
+    qty: 34.3,
+}
+[matching/src/lib.rs:52:17] &order = OrderEntry {
+    id: c8e1acfd-56d7-4463-a1d7-8348393cffad,
+    user_id: "user_id",
+    market_id: "asdwf",
+    price: 121.2,
+    qty: 34.3,
+}
+[matching/src/lib.rs:111:17] &self.bids = {}
+[matching/src/lib.rs:112:17] &self.asks = {}
+[matching/src/lib.rs:113:17] &trades = []
