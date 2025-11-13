@@ -4,9 +4,9 @@ use axum::{
     Json, Router,
     extract::{Path, State},
     http::StatusCode,
-    routing::{get, post},
+    routing::{ get, post},
 };
-use matching::{MarketBooks, MarketSnapshot, OrderBook, OrderEntry, Side, SnapshotData, Trade};
+use matching::{MarketBooks, MarketSnapshot, OrderEntry, Side, SnapshotData, Trade};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use tokio::sync::{RwLock, mpsc, oneshot};
@@ -24,9 +24,14 @@ enum EngineMsg {
         share: ShareType,
         price: Decimal,
         order_id: Uuid,
-        resp: oneshot::Sender<bool>,
+        resp: oneshot::Sender<(bool, String)>,
     },
-    Snapshot {  resp: oneshot::Sender<((Vec<SnapshotData>, Vec<SnapshotData>), (Vec<SnapshotData>, Vec<SnapshotData>))> }
+    Snapshot {
+        resp: oneshot::Sender<(
+            (Vec<SnapshotData>, Vec<SnapshotData>),
+            (Vec<SnapshotData>, Vec<SnapshotData>),
+        )>,
+    },
 }
 
 #[derive(Deserialize)]
@@ -34,7 +39,6 @@ enum ShareType {
     Yes,
     No,
 }
-
 
 async fn run_market_engine(mut rx: mpsc::Receiver<EngineMsg>) {
     let mut book = MarketBooks::new();
@@ -47,10 +51,10 @@ async fn run_market_engine(mut rx: mpsc::Receiver<EngineMsg>) {
                 resp,
             } => match share {
                 ShareType::Yes => {
-                    dbg!(&trades);
                     let result = book.yes.place_order(trades, side);
                     let _ = resp.send(result);
                 }
+
                 ShareType::No => {
                     let result = book.no.place_order(trades, side);
                     let _ = resp.send(result);
@@ -72,12 +76,9 @@ async fn run_market_engine(mut rx: mpsc::Receiver<EngineMsg>) {
                     let _ = resp.send(result);
                 }
             },
-             EngineMsg::Snapshot { resp } => {
-                print!("{:?}", book.yes);
-                print!("{:?}", book.no);
-                // build yes snapshot
-                let yes_snapshot = book.snapshot();
-                let _ = resp.send(yes_snapshot);
+            EngineMsg::Snapshot { resp } => {
+                let snapshot = book.snapshot();
+                let _ = resp.send(snapshot);
             }
         }
     }
@@ -92,7 +93,7 @@ type Shared = Arc<AppState>;
 struct PlaceOrderReq {
     user_id: String,
     market_id: String,
-    side: String, // "bid" or "ask"
+    side: Side, // "bid" or "ask"
     share: ShareType,
     price: String,
     qty: String,
@@ -105,24 +106,33 @@ struct PlaceOrderRes {
     remaining_qty: Decimal,
 }
 
+#[derive(Deserialize)]
+struct CancelReq {
+    market_id: String,
+    order_id: Uuid,
+    side: Side, // "bid" or "ask"
+    share: ShareType,
+    price: Decimal,
+}
+#[derive(Serialize)]
+pub struct CancelRes {
+    success: bool,
+    message: String,
+}
+
 async fn place_order(
     State(state): State<Shared>,
     Json(req): Json<PlaceOrderReq>,
 ) -> Result<Json<PlaceOrderRes>, (StatusCode, String)> {
-    let side = match req.side.to_lowercase().as_str() {
-        "bid" => Side::Bid,
-        "ask" => Side::Ask,
-        _ => return Err((StatusCode::BAD_REQUEST, "INVALID".into())),
-    };
     let price =
         Decimal::from_str(&req.price).map_err(|_| (StatusCode::BAD_REQUEST, "bad price".into()))?;
     let qty =
         Decimal::from_str(&req.qty).map_err(|_| (StatusCode::BAD_REQUEST, "bad qty".into()))?;
 
-        let order_id = Uuid::new_v4();
+    let order_id = Uuid::new_v4();
     let order = OrderEntry {
         id: order_id,
-        user_id: "user_id".to_string(),
+        user_id: req.user_id.clone(),
         market_id: req.market_id.clone(),
         price,
         qty,
@@ -141,7 +151,7 @@ async fn place_order(
 
     let (resp_tx, resp_rx) = oneshot::channel();
     tx.send(EngineMsg::PlaceOrder {
-        side,
+        side: req.side,
         share: req.share,
         trades: order,
         resp: resp_tx,
@@ -162,6 +172,48 @@ async fn place_order(
         trades,
         remaining_qty: rem,
     }))
+}
+
+async fn cancel_order(
+    State(state): State<Shared>,
+    Json(req): Json<CancelReq>,
+) -> Result<Json<CancelRes>, (StatusCode, String)> {
+    let markets = state.markets.read().await;
+    let tx = if let Some(tx) = markets.get(&req.market_id) {
+        tx.clone()
+    } else {
+        return Err((StatusCode::NOT_FOUND, "market not found".into()));
+    };
+    let (resp_tx, resp_rx) = oneshot::channel();
+
+    tx.send(EngineMsg::CloseOrder {
+        side: req.side,
+        share: req.share,
+        price: req.price,
+        order_id: req.order_id,
+        resp: resp_tx,
+    })
+    .await
+    .map_err(|_| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "engine send failed".into(),
+        )
+    })?;
+    let (res, message) = resp_rx
+        .await
+        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "engine dropped".into()))?;
+    if res {
+        Ok(Json(CancelRes {
+            success: res,
+            message,
+        }))
+    } else {
+        return Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            message.into()
+        ));
+    }
 }
 
 async fn snapshot(
@@ -203,7 +255,7 @@ async fn main() {
 
     let app = Router::new()
         .route("/", get(|| async { "hello" }))
-        .route("/orderbook", post(place_order))
+        .route("/orderbook", post(place_order).delete(cancel_order))
         .route("/snapshot/{market_id}", get(snapshot))
         .with_state(state);
 

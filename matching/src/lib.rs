@@ -4,6 +4,7 @@ use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+#[derive(Deserialize, Debug)]
 pub enum Side {
     Bid,
     Ask,
@@ -45,13 +46,16 @@ impl OrderBook {
     pub fn best_ask(&self) -> Option<Decimal> {
         self.asks.keys().next().copied()
     }
-    pub fn place_order(&mut self, mut order: OrderEntry, side: Side) -> (Uuid, Vec<Trade>, Decimal) {
+    pub fn place_order(
+        &mut self,
+        mut order: OrderEntry,
+        side: Side,
+    ) -> (Uuid, Vec<Trade>, Decimal) {
         let mut trades: Vec<Trade> = Vec::new();
         match side {
             Side::Bid => {
                 dbg!(&order);
                 while order.qty > Decimal::ZERO {
-                    print!("Bid order matching in progress");
                     // get the best ask price
                     let Some(best_ask_price) = self.best_ask() else {
                         break;
@@ -93,29 +97,20 @@ impl OrderBook {
                             break;
                         }
                     }
-                    if order.qty > Decimal::ZERO {
-                        print!("Adding remaining bid order to book");
-                        let order_id = Uuid::new_v4();
-                        let entry = OrderEntry {
-                            id: order_id,
-                            user_id: order.user_id.clone(),
-                            market_id: order.market_id.clone(),
-                            price: order.price,
-                            qty: order.qty,
-                        };
-                        self.bids.entry(order.price).or_default().push_back(entry);
-                    }
-                    print!("Bid order matching in progress");
                 }
-                print!("Bid order processed: {:?} and {:?}", self.bids.len(), self.asks.len());
-                dbg!(&self.bids);
-                dbg!(&self.asks);
-                dbg!(&trades);
-
+                if order.qty > Decimal::ZERO {
+                    let entry = OrderEntry {
+                        id: order.id,
+                        user_id: order.user_id.clone(),
+                        market_id: order.market_id.clone(),
+                        price: order.price,
+                        qty: order.qty,
+                    };
+                    self.bids.entry(order.price).or_default().push_back(entry);
+                }
             }
             Side::Ask => {
                 while order.qty > Decimal::ZERO {
-                    print!("Ask order matching in progress");
                     let Some(best_bid_price) = self.best_bid() else {
                         break;
                     };
@@ -151,32 +146,27 @@ impl OrderBook {
                         } else {
                             break;
                         }
-                        print!("Ask order matching in progress");
-                    }
-                    if order.qty > Decimal::ZERO {
-                        print!("Adding remaining ask order to book");
-                        let order_id = Uuid::new_v4();
-                        let entry = OrderEntry {
-                            id: order_id,
-                            user_id: order.user_id.clone(),
-                            market_id: order.market_id.clone(),
-                            price: order.price.clone(),
-                            qty: order.qty.clone(),
-                        };
-                        self.asks
-                            .entry(order.price.clone())
-                            .or_default()
-                            .push_back(entry);
-                        dbg!(&self.asks);
                     }
                 }
-                print!("Bid order processed: {:?} and {:?}", self.bids.len(), self.asks.len());
+                if order.qty > Decimal::ZERO {
+                    let entry = OrderEntry {
+                        id: order.id,
+                        user_id: order.user_id.clone(),
+                        market_id: order.market_id.clone(),
+                        price: order.price.clone(),
+                        qty: order.qty.clone(),
+                    };
+                    self.asks
+                        .entry(order.price.clone())
+                        .or_default()
+                        .push_back(entry);
+                }
             }
         }
         (order.id, trades, order.qty)
     }
 
-    pub fn cancel_order(&mut self, side: Side, price: Decimal, order_id: Uuid) -> bool {
+    pub fn cancel_order(&mut self, side: Side, price: Decimal, order_id: Uuid) -> (bool, String) {
         let map = match side {
             Side::Bid => &mut self.bids,
             Side::Ask => &mut self.asks,
@@ -188,10 +178,12 @@ impl OrderBook {
                 if q.is_empty() {
                     map.remove(&price);
                 }
-                return true;
+                return (true, "done".to_string());
             }
+        }else{ 
+            return (false, "Not found".to_string());
         }
-        false
+        (false, "something went wrong".to_string())
     }
 }
 
@@ -217,32 +209,58 @@ impl MarketBooks {
             no: OrderBook::new(),
         }
     }
-    pub fn snapshot(&self) -> ((Vec<SnapshotData>, Vec<SnapshotData>), (Vec<SnapshotData>, Vec<SnapshotData>)) {
-        let yes_bids = self.yes.bids.iter().rev().map(|(p, q)| SnapshotData {
-            price: *p,
-            quantity: q.iter().map(|o| o.qty).sum(),
-            total: q.iter().map(|o| o.qty * o.price).sum(),
-        }).collect::<Vec<SnapshotData>>();
-        let yes_asks = self.yes.asks.iter().rev().map(|(p, q)| SnapshotData {
-            price: *p,
-            quantity: q.iter().map(|o| o.qty).sum(),
-            total: q.iter().map(|o| o.qty * o.price).sum(),
-        }).collect::<Vec<SnapshotData>>();
-        let no_bids = self.no.bids.iter().rev().map(|(p, q)| SnapshotData {
-            price: *p,
-            quantity: q.iter().map(|o| o.qty).sum(),
-            total: q.iter().map(|o| o.qty * o.price).sum(),
-        }).collect::<Vec<SnapshotData>>();
-        let no_asks = self.no.asks.iter().rev().map(|(p, q)| SnapshotData {
-            price: *p,
-            quantity: q.iter().map(|o| o.qty).sum(),
-            total: q.iter().map(|o| o.qty * o.price).sum(),
-        }).collect::<Vec<SnapshotData>>();
+    pub fn snapshot(
+        &self,
+    ) -> (
+        (Vec<SnapshotData>, Vec<SnapshotData>),
+        (Vec<SnapshotData>, Vec<SnapshotData>),
+    ) {
+        let yes_bids = self
+            .yes
+            .bids
+            .iter()
+            .rev()
+            .map(|(p, q)| SnapshotData {
+                price: *p,
+                quantity: q.iter().map(|o| o.qty).sum(),
+                total: q.iter().map(|o| o.qty * p).sum(),
+            })
+            .collect::<Vec<SnapshotData>>();
+        let yes_asks = self
+            .yes
+            .asks
+            .iter()
+            .rev()
+            .map(|(p, q)| SnapshotData {
+                price: *p,
+                quantity: q.iter().map(|o| o.qty).sum(),
+                total: q.iter().map(|o| o.qty * p).sum(),
+            })
+            .collect::<Vec<SnapshotData>>();
+        let no_bids = self
+            .no
+            .bids
+            .iter()
+            .rev()
+            .map(|(p, q)| SnapshotData {
+                price: *p,
+                quantity: q.iter().map(|o| o.qty).sum(),
+                total: q.iter().map(|o| o.qty * p).sum(),
+            })
+            .collect::<Vec<SnapshotData>>();
+        let no_asks = self
+            .no
+            .asks
+            .iter()
+            .rev()
+            .map(|(p, q)| SnapshotData {
+                price: *p,
+                quantity: q.iter().map(|o| o.qty).sum(),
+                total: q.iter().map(|o| o.qty * p).sum(),
+            })
+            .collect::<Vec<SnapshotData>>();
         let yes = (yes_bids, yes_asks);
         let no = (no_bids, no_asks);
-        print!("Snapshot generated: {:?}, {:?}", yes, no);
         (yes, no)
     }
 }
-
-
