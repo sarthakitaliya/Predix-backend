@@ -1,14 +1,23 @@
 use std::str::FromStr;
 
-use axum::{Json, extract::State, http::StatusCode};
+use axum::{
+    Extension, Json,
+    extract::{Request, State},
+    http::StatusCode,
+};
 
 use matching::types::OrderEntry;
+use privy_rs::{AuthorizationContext, JwtUser, PrivateKey};
 use rust_decimal::Decimal;
 use tokio::sync::{mpsc, oneshot};
 use uuid::Uuid;
 
-use crate::{engine::engine::{EngineMsg, run_market_engine}, models::order::{CancelReq, CancelRes, PlaceOrderReq, PlaceOrderRes}, state::Shared};
-
+use crate::{
+    auth::{claims::AuthUser, privy::PClient},
+    engine::engine::{EngineMsg, run_market_engine},
+    models::order::{CancelReq, CancelRes, PlaceOrderReq, PlaceOrderRes},
+    state::Shared,
+};
 
 pub async fn place_order(
     State(state): State<Shared>,
@@ -99,9 +108,24 @@ pub async fn cancel_order(
             message,
         }))
     } else {
-        return Err((
-            StatusCode::INTERNAL_SERVER_ERROR,
-            message.into()
-        ));
+        return Err((StatusCode::INTERNAL_SERVER_ERROR, message.into()));
     }
+}
+
+pub async fn health_check(
+    Extension(user): Extension<AuthUser>,
+    State(state): State<Shared>,
+) -> &'static str {
+    // let solana_service = state.privy_client.wallets().solana();
+    // let authorization_key = std::env::var("PRIVY_SIGNER_PRIVATE_KEY")
+    //     .expect("PRIVY_SIGNER_PRIVATE_KEY environment variable not set");
+    // let ctx = AuthorizationContext::new()
+    // .push(JwtUser((*state.privy_client).clone(), user.access_token.clone()))
+    // .push(PrivateKey(authorization_key.to_string()));
+    // let sign = solana_service.sign_message(&user.wallet_id, "asdw",&ctx , None).await.unwrap();
+
+    // dbg!(sign);
+    // dbg!(_wallets);
+    dbg!("Health check called");
+    "OK"
 }
