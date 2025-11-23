@@ -4,7 +4,7 @@ use rust_decimal::Decimal;
 use tokio::sync::{mpsc, oneshot};
 use uuid::Uuid;
 
-use crate::models::order::ShareType;
+use crate::models::orderbook::ShareType;
 
 pub enum EngineMsg {
     PlaceOrder {

@@ -43,4 +43,5 @@ pub struct AuthUser {
     pub email: String,
     pub name: String,
     pub solana_address: String,
+    pub is_admin: bool,
 }

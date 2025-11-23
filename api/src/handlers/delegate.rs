@@ -9,10 +9,7 @@ use spl_token::instruction::approve_checked;
 use std::env;
 
 use crate::{
-    auth::claims::AuthUser,
-    models::delegate::{ApproveRequest, ApproveRes},
-    state::Shared,
-    utils::solana::derive_market_pda,
+    models::{auth::AuthUser, delegate::{ApproveRequest, ApproveRes}}, state::state::Shared, utils::solana::derive_market_pda
 };
 
 
@@ -69,6 +66,7 @@ pub async fn delegate_approval(
         )
     })?;
     let (market_pda, bump) = derive_market_pda(&payload.market_id, &program_id);
+    dbg!("Market PDA: {:?}", &market_pda);
     let approve_ix = approve_checked(
         &spl_token::id(),
         &user_ata_pubkey,

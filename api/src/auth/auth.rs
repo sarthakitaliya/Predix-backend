@@ -5,11 +5,10 @@ use axum::{
     response::Response,
 };
 use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode};
-use serde::{Deserialize, Serialize};
 use std::env;
-use tower_cookies::Cookies;
 
-use crate::auth::claims::{AuthUser, PrivyClaims, RawClaims};
+use crate::models::auth::{AuthUser, PrivyClaims, RawClaims};
+
 
 pub async fn auth_middleware(
     headers: HeaderMap,
@@ -83,6 +82,7 @@ pub async fn auth_middleware(
         Some(e) => e,
         None => return Err(StatusCode::UNAUTHORIZED),
     };
+    let is_admin = email == env::var("ADMIN_EMAIL").unwrap_or_default();
 
     let solana_address = match solana_address {
         Some(addr) => addr,
@@ -102,7 +102,9 @@ pub async fn auth_middleware(
         email,
         name,
         solana_address,
+        is_admin,
     };
+    dbg!("Auth user constructed:", &auth_user);
     req.extensions_mut().insert(auth_user);
     Ok(next.run(req).await)
 }

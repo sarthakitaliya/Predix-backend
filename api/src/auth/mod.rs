@@ -1,3 +1,2 @@
-pub mod privy;
-pub mod claims;
-pub mod middleware;
+pub mod auth;
+pub mod require_admin;
