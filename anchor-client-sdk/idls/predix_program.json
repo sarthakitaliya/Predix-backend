@@ -627,6 +627,11 @@
           "signer": true
         },
         {
+          "name": "admin",
+          "writable": true,
+          "signer": true
+        },
+        {
           "name": "token_program",
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         },
@@ -741,26 +746,6 @@
       "code": 6014,
       "name": "InvalidExpirationTimestamp",
       "msg": "Invalid expiration timestamp"
-    },
-    {
-      "code": 6015,
-      "name": "InvalidCollateralAccount",
-      "msg": "Invalid collateral account"
-    },
-    {
-      "code": 6016,
-      "name": "InvalidOwner",
-      "msg": "Invalid owner"
-    },
-    {
-      "code": 6017,
-      "name": "InvalidAccounts",
-      "msg": "Invalid accounts"
-    },
-    {
-      "code": 6018,
-      "name": "InvalidDelegate",
-      "msg": "Invalid delegate"
     }
   ],
   "types": [

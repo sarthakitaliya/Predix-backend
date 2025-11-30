@@ -11,7 +11,7 @@ use anchor_lang::{
     declare_program,
     prelude::{Pubkey, system_program},
 };
-use anyhow::Result;
+use anyhow::{Ok, Result};
 use solana_sdk::{message::Message, transaction::Transaction};
 
 use crate::{
@@ -127,11 +127,11 @@ impl PredixSdk {
             yes_mint: yes_mint_pda,
             no_mint: no_mint_pda,
             user: *user_wallet,
+            admin: self.keypair.pubkey(),
             token_program: spl_token::ID,
             associated_token_program: spl_associated_token_account::ID,
             system_program: system_program::ID,
         };
-        let payer = self.keypair.clone();
 
         let args = args::SplitToken { market_id, amount };
 
@@ -146,9 +146,64 @@ impl PredixSdk {
 
         let message = Message::new(&[ix_vec.remove(0)], Some(&self.keypair.pubkey()));
         let mut tx = Transaction::new_unsigned(message);
-        dbg!("Recent blockhash: {:?}", &recent_blockhash);
         tx.try_partial_sign(&[self.keypair.as_ref()], recent_blockhash)?;
-        dbg!("Split order tx: {:?}", &tx);
+
+        let serialized = bincode::serialize(&tx)?;
+        #[allow(deprecated)]
+        let tx_base64 = base64::encode(serialized);
+
+        Ok(tx_base64)
+    }
+
+    pub async fn merge_order(
+        &self,
+        market_id: u64,
+        user_wallet: &Pubkey,
+        collateral_mint: &Pubkey,
+        amount: u64,
+    ) -> Result<String> {
+        let (market_pda, _bump) = derive_market_pda(market_id, &predix_program::ID);
+        let (vault_pda, _bump) = vault_pda(market_id, &predix_program::ID);
+        let ((yes_mint_pda, _), (no_mint_pda, _)) =
+            derive_yes_and_no_mint_pdas(market_id, &predix_program::ID);
+        let user_collateral_ata = derive_user_collateral_ata_pda(user_wallet, collateral_mint);
+        let (user_yes_ata, user_no_ata) =
+            derive_yes_and_no_ata_pdas(user_wallet, &yes_mint_pda, &no_mint_pda);
+        dbg!("Market PDA:", market_pda);
+        dbg!("Vault PDA:", vault_pda);
+        dbg!("Yes Mint PDA:", yes_mint_pda);
+        dbg!("No Mint PDA:", no_mint_pda);
+        dbg!("User Collateral ATA:", user_collateral_ata);
+        dbg!("User Yes ATA:", user_yes_ata);
+        dbg!("User No ATA:", user_no_ata);
+
+        let args = args::MergeTokens { market_id, amount };
+
+        let accounts = accounts::MergeTokens {
+            market: market_pda,
+            user_collateral: user_collateral_ata,
+            collateral_vault: vault_pda,
+            yes_ata: user_yes_ata,
+            no_ata: user_no_ata,
+            yes_mint: yes_mint_pda,
+            no_mint: no_mint_pda,
+            user: *user_wallet,
+            token_program: spl_token::ID,
+            system_program: system_program::ID,
+        };
+
+        let mut ix_vec = self
+            .program
+            .request()
+            .accounts(accounts)
+            .args(args)
+            .instructions()?;
+        
+        dbg!("Merge order ix: {:?}", &ix_vec);
+        let recent_blockhash = self.program.rpc().get_latest_blockhash().await?;
+        let message = Message::new(&[ix_vec.remove(0)], Some(&self.keypair.pubkey()));
+        let mut tx = Transaction::new_unsigned(message);
+        tx.try_partial_sign(&[self.keypair.as_ref()], recent_blockhash)?;
 
         let serialized = bincode::serialize(&tx)?;
         #[allow(deprecated)]

@@ -19,7 +19,8 @@ use crate::{
     models::{
         auth::AuthUser,
         orderbook::{
-            CancelReq, CancelRes, PlaceOrderReq, PlaceOrderRes, SplitOrderReq, SplitOrderRes,
+            CancelReq, CancelRes, MergeOrderReq, MergeOrderRes, PlaceOrderReq, PlaceOrderRes,
+            SplitOrderReq, SplitOrderRes,
         },
     },
     state::state::Shared,
@@ -156,6 +157,40 @@ pub async fn split_order(
     }))
 }
 
+pub async fn merge_order(
+    State(state): State<Shared>,
+    Extension(user): Extension<AuthUser>,
+    Json(req): Json<MergeOrderReq>,
+) -> Result<Json<MergeOrderRes>, (StatusCode, String)> {
+    let collateral_mint = Pubkey::from_str(&req.collateral_mint).map_err(|e| {
+        (
+            StatusCode::BAD_REQUEST,
+            format!("Invalid collateral mint address: {}", e),
+        )
+    })?;
+    let user_pubkey = Pubkey::from_str(&user.solana_address).map_err(|e| {
+        (
+            StatusCode::BAD_REQUEST,
+            format!("Invalid user pubkey address: {}", e),
+        )
+    })?;
+
+    let tx = state
+        .predix_sdk
+        .merge_order(req.market_id, &user_pubkey, &collateral_mint, req.amount)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to create merge order instruction: {}", e),
+            )
+        })?;
+    dbg!("Merge order tx: {}", &tx);
+    Ok(Json(MergeOrderRes {
+        tx_message: tx,
+        message: "Merge order instruction created successfully".into(),
+    }))
+}
 pub async fn snapshot(
     State(state): State<Shared>,
     Path(market_id): Path<String>,

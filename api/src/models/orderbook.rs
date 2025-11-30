@@ -1,4 +1,3 @@
-
 use matching::types::{Side, Trade};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
@@ -36,6 +35,19 @@ pub struct SplitOrderReq {
 
 #[derive(Serialize)]
 pub struct SplitOrderRes {
+    pub tx_message: String,
+    pub message: String,
+}
+
+#[derive(Deserialize)]
+pub struct MergeOrderReq {
+    pub market_id: u64,
+    pub collateral_mint: String,
+    pub amount: u64,
+}
+
+#[derive(Serialize)]
+pub struct MergeOrderRes {
     pub tx_message: String,
     pub message: String,
 }
