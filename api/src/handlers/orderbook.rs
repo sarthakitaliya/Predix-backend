@@ -1,19 +1,27 @@
+use std::env;
 use std::str::FromStr;
 
 use axum::{
-    Json,
+    Extension, Json,
     extract::{Path, State},
     http::StatusCode,
 };
 
+use anyhow::Result;
 use matching::types::{MarketSnapshot, OrderEntry};
 use rust_decimal::Decimal;
+use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
 use tokio::sync::{mpsc, oneshot};
 use uuid::Uuid;
 
 use crate::{
     engine::engine::{EngineMsg, run_market_engine},
-    models::orderbook::{CancelReq, CancelRes, PlaceOrderReq, PlaceOrderRes},
+    models::{
+        auth::AuthUser,
+        orderbook::{
+            CancelReq, CancelRes, PlaceOrderReq, PlaceOrderRes, SplitOrderReq, SplitOrderRes,
+        },
+    },
     state::state::Shared,
 };
 
@@ -108,6 +116,44 @@ pub async fn cancel_order(
     } else {
         return Err((StatusCode::INTERNAL_SERVER_ERROR, message.into()));
     }
+}
+
+pub async fn split_order(
+    State(state): State<Shared>,
+    Extension(user): Extension<AuthUser>,
+    Json(req): Json<SplitOrderReq>,
+) -> Result<Json<SplitOrderRes>, (StatusCode, String)> {
+    let collateral_mint = Pubkey::from_str(&req.collateral_mint).map_err(|e| {
+        (
+            StatusCode::BAD_REQUEST,
+            format!("Invalid collateral mint address: {}", e),
+        )
+    })?;
+    let user_pubkey = Pubkey::from_str(&user.solana_address).map_err(|e| {
+        (
+            StatusCode::BAD_REQUEST,
+            format!("Invalid user pubkey address: {}", e),
+        )
+    })?;
+    // let payer_private_key =
+    //     env::var("FEE_PAYER_PRIVATE_KEY").expect("FEE_PAYER_PRIVATE_KEY must be set");
+    // let key_pair = Keypair::from_base58_string(&payer_private_key);
+
+    let tx = state
+        .predix_sdk
+        .split_order(req.market_id, &user_pubkey, &collateral_mint, req.amount)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to create split order instruction: {}", e),
+            )
+        })?;
+    dbg!("Split order tx: {}", &tx);
+    Ok(Json(SplitOrderRes {
+        tx_message: tx,
+        message: "Split order instruction created successfully".into(),
+    }))
 }
 
 pub async fn snapshot(

@@ -28,6 +28,19 @@ pub struct PlaceOrderRes {
 }
 
 #[derive(Deserialize)]
+pub struct SplitOrderReq {
+    pub market_id: u64,
+    pub collateral_mint: String,
+    pub amount: u64,
+}
+
+#[derive(Serialize)]
+pub struct SplitOrderRes {
+    pub tx_message: String,
+    pub message: String,
+}
+
+#[derive(Deserialize)]
 pub struct CancelReq {
     pub market_id: String,
     pub order_id: Uuid,

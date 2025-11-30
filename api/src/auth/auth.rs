@@ -104,7 +104,6 @@ pub async fn auth_middleware(
         solana_address,
         is_admin,
     };
-    dbg!("Auth user constructed:", &auth_user);
     req.extensions_mut().insert(auth_user);
     Ok(next.run(req).await)
 }

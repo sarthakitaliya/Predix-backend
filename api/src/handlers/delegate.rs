@@ -9,9 +9,13 @@ use spl_token::instruction::approve_checked;
 use std::env;
 
 use crate::{
-    models::{auth::AuthUser, delegate::{ApproveRequest, ApproveRes}}, state::state::Shared, utils::solana::derive_market_pda
+    models::{
+        auth::AuthUser,
+        delegate::{ApproveRequest, ApproveRes, CheckRequest, CheckResponse},
+    },
+    state::state::Shared,
+    utils::solana::{derive_market_pda, verify_delegation},
 };
-
 
 pub async fn delegate_approval(
     State(state): State<Shared>,
@@ -65,7 +69,7 @@ pub async fn delegate_approval(
             format!("Invalid user ATA address: {}", e),
         )
     })?;
-    let (market_pda, bump) = derive_market_pda(&payload.market_id, &program_id);
+    let (market_pda, bump) = derive_market_pda(payload.market_id);
     dbg!("Market PDA: {:?}", &market_pda);
     let approve_ix = approve_checked(
         &spl_token::id(),
@@ -83,10 +87,11 @@ pub async fn delegate_approval(
             format!("Failed to create approve instruction: {}", e),
         )
     })?;
-
+    dbg!("Approve instruction: {:?}", &approve_ix);
     // we have to sign partially with fee payer and send transaction to frontend for user to sign
     let message = Message::new(&[approve_ix], Some((&fee_payer.pubkey())));
     let mut tx = Transaction::new_unsigned(message);
+    dbg!("Partial transaction before signing: {:?}", &tx);
     tx.try_partial_sign(&[fee_payer], recent_blockhash)
         .map_err(|e| {
             (
@@ -100,11 +105,36 @@ pub async fn delegate_approval(
             format!("Failed to serialize transaction: {}", e),
         )
     })?;
-
+    #[allow(deprecated)]
     let tx_base64 = base64::encode(&serialized);
     // let tx_base64 = base64::encode(&serialized);
     Ok(Json(ApproveRes {
         tx_message: tx_base64,
         recent_blockhash: recent_blockhash.to_string(),
+    }))
+}
+
+pub async fn check(
+    State(state): State<Shared>,
+    Extension(user): Extension<AuthUser>,
+    Json(payload): Json<CheckRequest>,
+) -> Result<Json<CheckResponse>, (StatusCode, String)> {
+    dbg!("Check payload: {:?}", &payload);
+    let (market_pda, bump) = derive_market_pda(payload.market_id);
+    dbg!("Market PDA: {:?}", &market_pda);
+    let a = verify_delegation(
+        &state.rpc_client,
+        &user.solana_address,
+        &payload.collateral_mint,
+    )
+    .await
+    .map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Verification error: {}", e),
+        )
+    })?;
+    Ok(Json(CheckResponse {
+        message: "Check successful".to_string(),
     }))
 }

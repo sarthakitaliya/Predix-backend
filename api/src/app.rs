@@ -1,25 +1,29 @@
 use std::sync::Arc;
 
 use axum::{
-    Router,
+    Extension, Json, Router,
     extract::State,
     http::{
-        HeaderName, HeaderValue, Method,
+        HeaderName, HeaderValue, Method, StatusCode,
         header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE},
     },
-    routing::get,
+    routing::{get, post},
 };
 use tower_http::cors::CorsLayer;
 
 use crate::{
+    handlers::delegate::delegate_approval,
+    models::auth::AuthUser,
     routes,
     state::state::{AppState, Shared},
+    utils::solana::verify_delegation,
 };
 
 pub async fn health_check(State(_state): State<Shared>) -> &'static str {
     dbg!("Health check called");
     "OK"
 }
+
 
 pub fn build_app(state: Arc<AppState>) -> Router {
     let privy_header = HeaderName::from_static("privy-id-token");
