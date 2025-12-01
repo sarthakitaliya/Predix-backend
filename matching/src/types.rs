@@ -2,7 +2,7 @@ use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, PartialEq)]
 pub enum Side {
     Bid,
     Ask,
@@ -11,17 +11,17 @@ pub enum Side {
 #[derive(Clone, Serialize, Debug)]
 pub struct OrderEntry {
     pub id: Uuid,
-    pub user_id: String,
-    pub market_id: String,
+    pub user_address: String,
+    pub market_id: u64,
     pub price: Decimal,
     pub qty: Decimal,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Trade {
-    pub market_id: String,
-    pub buyer_id: String,
-    pub seller_id: String,
+    pub market_id: u64,
+    pub buyer_address: String,
+    pub seller_address: String,
     pub price: Decimal,
     pub quantity: Decimal,
 }

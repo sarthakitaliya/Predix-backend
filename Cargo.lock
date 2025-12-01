@@ -242,6 +242,8 @@ dependencies = [
  "anyhow",
  "base64 0.22.1",
  "bincode",
+ "matching",
+ "rust_decimal",
  "solana-sdk",
  "spl-associated-token-account",
  "spl-token 6.0.0",

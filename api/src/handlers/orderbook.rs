@@ -1,13 +1,16 @@
 use std::env;
 use std::str::FromStr;
 
+use anchor_client_sdk::{
+    predix_program::types::TradeSide,
+    utils::{get_match_fills, get_remaining_accounts},
+};
 use axum::{
     Extension, Json,
     extract::{Path, State},
     http::StatusCode,
 };
 
-use anyhow::Result;
 use matching::types::{MarketSnapshot, OrderEntry};
 use rust_decimal::Decimal;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
@@ -20,28 +23,26 @@ use crate::{
         auth::AuthUser,
         orderbook::{
             CancelReq, CancelRes, MergeOrderReq, MergeOrderRes, PlaceOrderReq, PlaceOrderRes,
-            SplitOrderReq, SplitOrderRes,
+            ShareType, SplitOrderReq, SplitOrderRes,
         },
     },
     state::state::Shared,
+    utils::solana::verify_delegation,
 };
 
 pub async fn place_order(
     State(state): State<Shared>,
+    Extension(user): Extension<AuthUser>,
     Json(req): Json<PlaceOrderReq>,
 ) -> Result<Json<PlaceOrderRes>, (StatusCode, String)> {
-    let price =
-        Decimal::from_str(&req.price).map_err(|_| (StatusCode::BAD_REQUEST, "bad price".into()))?;
-    let qty =
-        Decimal::from_str(&req.qty).map_err(|_| (StatusCode::BAD_REQUEST, "bad qty".into()))?;
 
     let order_id = Uuid::new_v4();
     let order = OrderEntry {
         id: order_id,
-        user_id: req.user_id.clone(),
+        user_address: user.solana_address.clone(),
         market_id: req.market_id.clone(),
-        price,
-        qty,
+        price: req.price,
+        qty: req.qty,
     };
 
     let mut markets = state.markets.write().await;
@@ -72,16 +73,55 @@ pub async fn place_order(
     let (id, trades, rem) = resp_rx
         .await
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "engine dropped".into()))?;
-
+    let trade_side = match req.share {
+        ShareType::Yes => TradeSide::Yes,
+        ShareType::No => TradeSide::No,
+    };
+    dbg!("Trades: {:?}", &trades);
+    dbg!("Remaining Qty: {:?}", &rem);
+    if trades.is_empty() {
+        return Ok(Json(PlaceOrderRes{
+            order_id,
+            trades,
+            remaining_qty: rem,
+            message: "Order placed successfully with no matches".into(),
+        }));
+    }
+    verify_delegation(
+        &state.rpc_client,
+        &user.solana_address,
+        &req.collateral_mint,
+    )
+    .await
+    .map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Verification error: {}", e),
+        )
+    })?;
+    let match_fills = get_match_fills(&trades, trade_side);
+    let remaining_accounts = get_remaining_accounts(&trades, trade_side, req.market_id);
+    state
+        .predix_sdk
+        .place_order(req.market_id, match_fills, remaining_accounts)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to place order on chain: {}", e),
+            )
+        })?;
     Ok(Json(PlaceOrderRes {
         order_id,
         trades,
         remaining_qty: rem,
+        message: "Order placed successfully".into(),
     }))
 }
 
 pub async fn cancel_order(
     State(state): State<Shared>,
+    Extension(user): Extension<AuthUser>,
     Json(req): Json<CancelReq>,
 ) -> Result<Json<CancelRes>, (StatusCode, String)> {
     let markets = state.markets.read().await;
@@ -191,9 +231,9 @@ pub async fn merge_order(
         message: "Merge order instruction created successfully".into(),
     }))
 }
-pub async fn snapshot(
+pub async fn get_orderbook(
     State(state): State<Shared>,
-    Path(market_id): Path<String>,
+    Path(market_id): Path<u64>,
 ) -> Result<Json<MarketSnapshot>, (StatusCode, String)> {
     let markets = state.markets.read().await;
     let tx = if let Some(tx) = markets.get(&market_id) {

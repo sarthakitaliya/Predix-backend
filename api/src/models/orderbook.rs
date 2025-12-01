@@ -3,7 +3,7 @@ use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone, Copy, Debug)]
 pub enum ShareType {
     Yes,
     No,
@@ -11,12 +11,12 @@ pub enum ShareType {
 
 #[derive(Deserialize)]
 pub struct PlaceOrderReq {
-    pub user_id: String,
-    pub market_id: String,
+    pub market_id: u64,
+    pub collateral_mint: String,
     pub side: Side, // "bid" or "ask"
     pub share: ShareType,
-    pub price: String,
-    pub qty: String,
+    pub price: Decimal,
+    pub qty: Decimal,
 }
 
 #[derive(Serialize)]
@@ -24,6 +24,7 @@ pub struct PlaceOrderRes {
     pub order_id: Uuid,
     pub trades: Vec<Trade>,
     pub remaining_qty: Decimal,
+    pub message: String,
 }
 
 #[derive(Deserialize)]
@@ -54,7 +55,7 @@ pub struct MergeOrderRes {
 
 #[derive(Deserialize)]
 pub struct CancelReq {
-    pub market_id: String,
+    pub market_id: u64,
     pub order_id: Uuid,
     pub side: Side, // "bid" or "ask"
     pub share: ShareType,

@@ -53,8 +53,8 @@ impl OrderBook {
 
                             // record the trade
                             trades.push(Trade {
-                                buyer_id: order.user_id.clone(),
-                                seller_id: maker.user_id.clone(),
+                                buyer_address: order.user_address.clone(),
+                                seller_address: maker.user_address.clone(),
                                 price: order.price,
                                 quantity: take,
                                 market_id: maker.market_id.clone(),
@@ -79,7 +79,7 @@ impl OrderBook {
                 if order.qty > Decimal::ZERO {
                     let entry = OrderEntry {
                         id: order.id,
-                        user_id: order.user_id.clone(),
+                        user_address: order.user_address.clone(),
                         market_id: order.market_id.clone(),
                         price: order.price,
                         qty: order.qty,
@@ -105,8 +105,8 @@ impl OrderBook {
                             order.qty -= take;
 
                             trades.push(Trade {
-                                buyer_id: maker.user_id.clone(),
-                                seller_id: order.user_id.clone(),
+                                buyer_address: maker.user_address.clone(),
+                                seller_address: order.user_address.clone(),
                                 price: order.price,
                                 quantity: take,
                                 market_id: maker.market_id.clone(),
@@ -129,7 +129,7 @@ impl OrderBook {
                 if order.qty > Decimal::ZERO {
                     let entry = OrderEntry {
                         id: order.id,
-                        user_id: order.user_id.clone(),
+                        user_address: order.user_address.clone(),
                         market_id: order.market_id.clone(),
                         price: order.price.clone(),
                         qty: order.qty.clone(),

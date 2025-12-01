@@ -1,10 +1,15 @@
 use std::str::FromStr;
 
+use anchor_client_sdk::utils::{derive_no_ata, derive_yes_and_no_mint_pdas, derive_yes_ata};
+use anchor_lang::declare_program;
 use axum::{Extension, Json, extract::State, http::StatusCode};
 use base64;
+use matching::types::Side;
 use solana_sdk::{
-    message::Message, pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::Transaction,
+    instruction::Instruction, message::Message, pubkey::Pubkey, signature::Keypair, signer::Signer,
+    transaction::Transaction,
 };
+use spl_associated_token_account::{get_associated_token_address, instruction::create_associated_token_account_idempotent};
 use spl_token::instruction::approve_checked;
 use std::env;
 
@@ -12,10 +17,13 @@ use crate::{
     models::{
         auth::AuthUser,
         delegate::{ApproveRequest, ApproveRes, CheckRequest, CheckResponse},
+        orderbook::ShareType,
     },
     state::state::Shared,
     utils::solana::{derive_market_pda, verify_delegation},
 };
+
+declare_program!(predix_program);
 
 pub async fn delegate_approval(
     State(state): State<Shared>,
@@ -24,18 +32,6 @@ pub async fn delegate_approval(
 ) -> Result<Json<ApproveRes>, (StatusCode, String)> {
     dbg!("Delegate approval payload: {:?}", &payload);
     let rpc_client = &state.rpc_client;
-    let program_id = Pubkey::from_str(&payload.program_id).map_err(|e| {
-        (
-            StatusCode::BAD_REQUEST,
-            format!("Invalid program ID: {}", e),
-        )
-    })?;
-    let payer_pub_key = env::var("FEE_PAYER_PUBLIC_KEY").map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("FEE_PAYER_PUBLIC_KEY not set: {}", e),
-        )
-    })?;
     let payer_private_key = env::var("FEE_PAYER_PRIVATE_KEY").map_err(|e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -57,39 +53,95 @@ pub async fn delegate_approval(
             format!("Invalid wallet address: {}", e),
         )
     })?;
-    let mint_pubkey = Pubkey::from_str(&payload.mint).map_err(|e| {
-        (
-            StatusCode::BAD_REQUEST,
-            format!("Invalid mint address: {}", e),
-        )
-    })?;
-    let user_ata_pubkey = Pubkey::from_str(&payload.user_ata).map_err(|e| {
-        (
-            StatusCode::BAD_REQUEST,
-            format!("Invalid user ATA address: {}", e),
-        )
-    })?;
-    let (market_pda, bump) = derive_market_pda(payload.market_id);
+    let usdc_mint_pubkey = Pubkey::from_str("4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU")
+        .map_err(|e| {
+            (
+                StatusCode::BAD_REQUEST,
+                format!("Invalid USDC mint address: {}", e),
+            )
+        })?;
+
+    let (market_pda, _bump) = derive_market_pda(payload.market_id);
     dbg!("Market PDA: {:?}", &market_pda);
-    let approve_ix = approve_checked(
-        &spl_token::id(),
-        &user_ata_pubkey,
-        &mint_pubkey,
-        &market_pda,
-        &wallet_pubkey,
-        &[],
-        payload.amount,
-        payload.decimals,
-    )
-    .map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Failed to create approve instruction: {}", e),
+    let mut ixs: Vec<Instruction> = Vec::new();
+    let token_mint;
+    let (yes_mint_pda, no_mint_pda) =
+        derive_yes_and_no_mint_pdas(payload.market_id, &predix_program::ID);
+    if payload.side == Side::Bid {
+        match payload.share {
+            ShareType::Yes => {
+                token_mint = yes_mint_pda.0;
+            }
+            ShareType::No => {
+                token_mint = no_mint_pda.0;
+            }
+        }
+        let ix = create_associated_token_account_idempotent(
+            &fee_payer.pubkey(),
+            &wallet_pubkey,
+            &token_mint,
+            &spl_token::id(),
+        );
+        dbg!("Create ATA instruction: {:?}", &ix);
+        ixs.push(ix);
+        // delegate approval
+        let user_ata_pubkey = spl_associated_token_account::get_associated_token_address(
+            &wallet_pubkey,
+            &usdc_mint_pubkey,
+        );
+        let approve_ix = approve_checked(
+            &spl_token::id(),
+            &user_ata_pubkey,
+            &usdc_mint_pubkey,
+            &market_pda,
+            &wallet_pubkey,
+            &[],
+            payload.amount,
+            payload.decimals,
         )
-    })?;
-    dbg!("Approve instruction: {:?}", &approve_ix);
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to create approve instruction: {}", e),
+            )
+        })?;
+        dbg!("Approve instruction: {:?}", &approve_ix);
+        ixs.push(approve_ix);
+    } else if payload.side == Side::Ask {
+        match payload.share {
+            ShareType::Yes => {
+                token_mint = yes_mint_pda.0;
+            }
+            ShareType::No => {
+                token_mint = no_mint_pda.0;
+            }
+        }
+        let token_ata = get_associated_token_address(
+            &wallet_pubkey,
+            &token_mint,
+        );
+        let approve_ix = approve_checked(
+            &spl_token::id(),
+            &token_ata,
+            &token_mint,
+            &market_pda,
+            &wallet_pubkey,
+            &[],
+            payload.amount,
+            payload.decimals,
+        )
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to create approve instruction: {}", e),
+            )
+        })?;
+        dbg!("Approve instruction: {:?}", &approve_ix);
+        ixs.push(approve_ix);
+    }
+
     // we have to sign partially with fee payer and send transaction to frontend for user to sign
-    let message = Message::new(&[approve_ix], Some((&fee_payer.pubkey())));
+    let message = Message::new(&ixs, Some(&fee_payer.pubkey()));
     let mut tx = Transaction::new_unsigned(message);
     dbg!("Partial transaction before signing: {:?}", &tx);
     tx.try_partial_sign(&[fee_payer], recent_blockhash)

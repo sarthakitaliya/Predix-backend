@@ -9,20 +9,23 @@ use anchor_client::{
 };
 use anchor_lang::{
     declare_program,
-    prelude::{Pubkey, system_program},
+    prelude::{AccountMeta, Pubkey, system_program},
 };
 use anyhow::{Ok, Result};
 use solana_sdk::{message::Message, transaction::Transaction};
 
 use crate::{
-    predix_program::client::{accounts, args},
+    predix_program::{
+        client::{accounts, args},
+        types::MatchFill,
+    },
     utils::{
         derive_market_pda, derive_user_collateral_ata_pda, derive_yes_and_no_ata_pdas,
         derive_yes_and_no_mint_pdas, vault_pda,
     },
 };
 
-mod utils;
+pub mod utils;
 
 declare_program!(predix_program);
 
@@ -90,6 +93,45 @@ impl PredixSdk {
             .request()
             .accounts(accounts)
             .args(args)
+            .send()
+            .await?;
+
+        println!("Transaction signature: {}", tx);
+        Ok(())
+    }
+
+    pub async fn place_order(
+        &self,
+        market_id: u64,
+        match_fills: Vec<MatchFill>,
+        remaining_accounts: Vec<AccountMeta>,
+    ) -> Result<()> {
+        dbg!("Placing order on market ID: {}", market_id);
+        dbg!("Match fills: {:?}", &match_fills);
+        dbg!("Remaining accounts: {:?}", &remaining_accounts);
+
+        let require_accounts = match_fills.len().checked_mul(6).ok_or_else(|| {
+            anyhow::anyhow!("Too many match fills, cannot calculate required accounts")
+        })?;
+        if remaining_accounts.len() < require_accounts {
+            return Err(anyhow::anyhow!("Insufficient remaining accounts provided"));
+        }
+        let (market_pda, _bump) = derive_market_pda(market_id, &predix_program::ID);
+
+        let args = args::ExecuteMatchMulti { fills: match_fills };
+
+        let accounts = accounts::ExecuteMatchMulti{
+            market: market_pda,
+            admin: self.keypair.pubkey(),
+            token_program: spl_token::ID,
+        };
+
+        let tx = self
+            .program
+            .request()
+            .accounts(accounts)
+            .args(args)
+            .accounts(remaining_accounts)
             .send()
             .await?;
 
@@ -198,7 +240,7 @@ impl PredixSdk {
             .accounts(accounts)
             .args(args)
             .instructions()?;
-        
+
         dbg!("Merge order ix: {:?}", &ix_vec);
         let recent_blockhash = self.program.rpc().get_latest_blockhash().await?;
         let message = Message::new(&[ix_vec.remove(0)], Some(&self.keypair.pubkey()));

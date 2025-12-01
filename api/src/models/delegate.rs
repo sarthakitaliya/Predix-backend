@@ -1,11 +1,13 @@
+use matching::types::Side;
 use serde::{Deserialize, Serialize};
+
+use crate::models::orderbook::ShareType;
 
 #[derive(Deserialize, Debug)]
 pub struct ApproveRequest {
     pub market_id: u64,
-    pub mint: String,
-    pub user_ata: String,
-    pub program_id: String,
+    pub side: Side, // "bid" or "ask"
+    pub share: ShareType,
     pub amount: u64,
     pub decimals: u8,
 }

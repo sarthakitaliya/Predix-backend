@@ -31,6 +31,7 @@ pub async fn verify_delegation(
     dbg!("Collateral Mint: {:?}", collateral_mint);
     dbg!("Collateral ATA: {:?}", collateral_ata);
     dbg!("Account Data: {:?}", account_data);
+    dbg!("Delegate: {:?}", account_data.delegate);
 
     Ok(())
 }

@@ -12,3 +12,5 @@ spl-token.workspace = true
 spl-associated-token-account.workspace = true
 base64.workspace = true
 bincode.workspace = true
+rust_decimal.workspace = true
+matching = {path = "../matching"}
