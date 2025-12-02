@@ -14,7 +14,7 @@ use anchor_lang::{
 use anyhow::{Ok, Result};
 use solana_sdk::{message::Message, transaction::Transaction};
 
-use crate::{
+pub use crate::{
     predix_program::{
         client::{accounts, args},
         types::MatchFill,

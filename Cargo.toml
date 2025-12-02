@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = [ "anchor-client-sdk","api", "db", "matching"]
+members = [ "anchor-client-sdk","api", "db", "event-listener", "matching"]
 
 [workspace.dependencies]
 tokio = {version = "1.48.0", features = ["full"]}

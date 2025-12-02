@@ -671,6 +671,86 @@
       ]
     }
   ],
+  "events": [
+    {
+      "name": "MarketInitialized",
+      "discriminator": [
+        134,
+        160,
+        122,
+        87,
+        50,
+        3,
+        255,
+        81
+      ]
+    },
+    {
+      "name": "MarketSettled",
+      "discriminator": [
+        237,
+        212,
+        22,
+        175,
+        201,
+        117,
+        215,
+        99
+      ]
+    },
+    {
+      "name": "MatchExecuted",
+      "discriminator": [
+        42,
+        57,
+        255,
+        224,
+        78,
+        10,
+        39,
+        168
+      ]
+    },
+    {
+      "name": "RewardsClaimed",
+      "discriminator": [
+        75,
+        98,
+        88,
+        18,
+        219,
+        112,
+        88,
+        121
+      ]
+    },
+    {
+      "name": "TokensMerged",
+      "discriminator": [
+        178,
+        179,
+        160,
+        81,
+        141,
+        143,
+        120,
+        66
+      ]
+    },
+    {
+      "name": "TokensSplit",
+      "discriminator": [
+        203,
+        162,
+        194,
+        220,
+        152,
+        63,
+        72,
+        37
+      ]
+    }
+  ],
   "errors": [
     {
       "code": 6000,
@@ -746,6 +826,26 @@
       "code": 6014,
       "name": "InvalidExpirationTimestamp",
       "msg": "Invalid expiration timestamp"
+    },
+    {
+      "code": 6015,
+      "name": "InvalidCollateralAccount",
+      "msg": "Invalid collateral account"
+    },
+    {
+      "code": 6016,
+      "name": "InvalidOwner",
+      "msg": "Invalid owner"
+    },
+    {
+      "code": 6017,
+      "name": "InvalidAccounts",
+      "msg": "Invalid accounts"
+    },
+    {
+      "code": 6018,
+      "name": "InvalidDelegate",
+      "msg": "Invalid delegate"
     }
   ],
   "types": [
@@ -814,6 +914,50 @@
       }
     },
     {
+      "name": "MarketInitialized",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market_id",
+            "type": "u64"
+          },
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "collateral_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "collateral_vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "metadata",
+            "type": "string"
+          },
+          {
+            "name": "yes_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "no_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "expiration_timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
       "name": "MarketOutcome",
       "type": {
         "kind": "enum",
@@ -826,6 +970,60 @@
           },
           {
             "name": "Undecided"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MarketSettled",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market_id",
+            "type": "u64"
+          },
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "outcome",
+            "type": {
+              "defined": {
+                "name": "MarketOutcome"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "MatchExecuted",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market_id",
+            "type": "u64"
+          },
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "fills_executed",
+            "type": {
+              "vec": {
+                "defined": {
+                  "name": "MatchFill"
+                }
+              }
+            }
           }
         ]
       }
@@ -850,6 +1048,78 @@
                 "name": "TradeSide"
               }
             }
+          }
+        ]
+      }
+    },
+    {
+      "name": "RewardsClaimed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market_id",
+            "type": "u64"
+          },
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TokensMerged",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market_id",
+            "type": "u64"
+          },
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TokensSplit",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market_id",
+            "type": "u64"
+          },
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
           }
         ]
       }
