@@ -12,12 +12,35 @@ pub enum MarketStatus {
     Resolved,
 }
 
-#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
-pub struct Market{
+#[derive(Debug, Clone, PartialEq, Eq, Type, Serialize, Deserialize)]
+#[sqlx(type_name = "market_outcome", rename_all = "lowercase")]
+#[serde(rename_all = "lowercase")]
+pub enum MarketOutcome {
+    Yes,
+    No,
+    #[sqlx(rename = "not_decided")]
+    NotDecided,
+}
+
+#[derive(Debug, FromRow)]
+pub struct Market {
     pub id: Uuid,
+    pub market_id: String,
+    pub market_pda: String,
+    pub metadata_url: String,
+    pub yes_mint: String,
+    pub no_mint: String,
+    pub usdc_vault: String,
+    pub status: MarketStatus,
+    pub outcome: MarketOutcome,
+    pub close_time: DateTime<Utc>,
+    pub resolve_time: Option<DateTime<Utc>>,
+
     pub title: String,
     pub description: Option<String>,
-    pub status: MarketStatus,
-    pub closed_at: Option<DateTime<Utc>>,
+    pub category: String,
+    pub image_url: Option<String>,
+
     pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
 }

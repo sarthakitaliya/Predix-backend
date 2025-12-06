@@ -11,6 +11,9 @@ dotenvy.workspace = true
 anyhow.workspace = true
 solana-sdk.workspace = true
 base64.workspace = true
+chrono.workspace = true
+uuid.workspace = true
 anchor-client-sdk = {path = "../anchor-client-sdk"}
+db = {path = "../db"}
 tokio-stream = "0.1.17"
 solana-program = "3.0.0"

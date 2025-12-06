@@ -1,5 +1,12 @@
 use anchor_lang::prelude::*;
+use chrono::Utc;
+use db::{
+    Db,
+    models::market::{self, MarketOutcome, MarketStatus},
+    queries::market::create_market,
+};
 use std::str::FromStr;
+use uuid::Uuid;
 
 use anyhow::Result;
 use solana_client::{
@@ -16,13 +23,14 @@ mod types;
 #[tokio::main]
 async fn main() -> Result<()> {
     dotenvy::dotenv().ok();
+    let database_url = std::env::var("DATABASE_URL")?;
     let program_id = std::env::var("PROGRAM_ID")?;
     let rpc_url =
         std::env::var("SOLANA_WS_RPC_URL").unwrap_or("wss://api.devnet.solana.com/".to_string());
 
     let program_id =
         Pubkey::from_str(&program_id).map_err(|e| anyhow::anyhow!("Invalid program id: {}", e))?;
-
+    let pool = Db::new(&database_url).await?.pool;
     let client = PubsubClient::new(&rpc_url).await?;
     let filter = RpcTransactionLogsFilter::Mentions(vec![program_id.to_string()]);
     let config = RpcTransactionLogsConfig { commitment: None };
@@ -55,12 +63,40 @@ async fn main() -> Result<()> {
                         match MarketInitialized::try_from_slice(payload) {
                             Ok(event) => {
                                 println!("Decoded MarketInitialized event: {:?}", event);
+                                let market_id = event.market_id.to_string();
+                                let market_pda = event.market_pda.to_string();
+                                let metadata_url = event.metadata_url;
+                                let yes_mint = event.yes_mint.to_string();
+                                let no_mint = event.no_mint.to_string();
+                                let usdc_vault = event.collateral_vault.to_string();
+                                let status = MarketStatus::Open;
+                                let outcome = MarketOutcome::NotDecided;
+                                let close_time = chrono::DateTime::<Utc>::from_timestamp(
+                                    event.expiration_timestamp as i64,
+                                    0,
+                                ).unwrap();
+                                let updated_at = chrono::Utc::now();
+                                let market = create_market(
+                                    &pool,
+                                    &market_id,
+                                    &market_pda,
+                                    &metadata_url,
+                                    &yes_mint,
+                                    &no_mint,
+                                    &usdc_vault,
+                                    status,
+                                    outcome,
+                                    close_time,
+                                    updated_at,
+                                )
+                                .await?;
+                                println!("Inserted market into DB: {:?}", market);
                             }
                             Err(e) => {
                                 println!("Failed to decode MarketInitialized event: {}", e);
                             }
                         }
-                    }else if data.starts_with(&match_executed_discriminator) {
+                    } else if data.starts_with(&match_executed_discriminator) {
                         let payload = &data[8..];
                         println!("MatchExecuted event payload: {:?}", payload);
                         match crate::types::MatchExecuted::try_from_slice(payload) {

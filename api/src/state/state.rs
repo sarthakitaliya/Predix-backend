@@ -1,9 +1,11 @@
 use std::{collections::HashMap, sync::Arc};
 
 use anchor_client_sdk::PredixSdk;
+use aws_sdk_s3::Client;
 use privy_rs::PrivyClient;
 use solana_client::nonblocking::rpc_client::RpcClient;
 use tokio::sync::{RwLock, mpsc};
+
 
 use crate::engine::engine::EngineMsg;
 
@@ -12,6 +14,7 @@ pub struct AppState {
     pub privy_client: Arc<PrivyClient>,
     pub rpc_client: Arc<RpcClient>,
     pub predix_sdk: Arc<PredixSdk>,
+    pub s3: Arc<Client>,
 }
 
 pub type Shared = Arc<AppState>;

@@ -13,6 +13,7 @@ use anchor_lang::{
 };
 use anyhow::{Ok, Result};
 use solana_sdk::{message::Message, transaction::Transaction};
+use uuid::Uuid;
 
 pub use crate::{
     predix_program::{
@@ -57,7 +58,7 @@ impl PredixSdk {
         &self,
         market_id: u64,
         collateral_mint: Pubkey,
-        metadata: String,
+        metadata_url: String,
         expiration_timestamp: i64,
     ) -> Result<()> {
         let (market_pda, _bump) = derive_market_pda(market_id, &predix_program::ID);
@@ -83,7 +84,7 @@ impl PredixSdk {
 
         let args = args::InitializeMarket {
             market_id,
-            metadata,
+            metadata: metadata_url,
             expiration_timestamp,
         };
         dbg!("Creating market with ID: {}", market_id);

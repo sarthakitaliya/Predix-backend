@@ -21,7 +21,7 @@ pub enum OrderStatus {
     Cancelled,
 }
 
-#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+#[derive(Debug, FromRow)]
 pub struct CloseOrder {
     pub id: Uuid,
     pub user_id: Uuid,

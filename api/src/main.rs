@@ -1,9 +1,10 @@
 use anchor_client::{
-    Client, Cluster,
     solana_sdk::{commitment_config::CommitmentConfig, signature::Keypair},
 };
 use anchor_client_sdk::PredixSdk;
 use anchor_lang::declare_program;
+use aws_config::{BehaviorVersion, Region};
+use aws_sdk_s3::{Client as S3Client, Config, config::{ Builder, Credentials, endpoint::{self, Endpoint}}};
 use dotenvy::dotenv;
 use privy_rs::PrivyClient;
 use solana_client::nonblocking::rpc_client::RpcClient;
@@ -40,9 +41,9 @@ mod utils;
 declare_program!(predix_program);
 
 #[tokio::main]
+#[allow(deprecated)]
 async fn main() -> anyhow::Result<()> {
     dotenv().ok();
-
     let app_id = env::var("PRIVY_APP_ID").expect("PRIVY_APP_ID environment variable not set");
     let app_secret =
         env::var("PRIVY_APP_SECRET").expect("PRIVY_APP_SECRET environment variable not set");
@@ -53,16 +54,63 @@ async fn main() -> anyhow::Result<()> {
     let payer_private_key =
         env::var("FEE_PAYER_PRIVATE_KEY").expect("FEE_PAYER_PRIVATE_KEY must be set");
     let predix_sdk = PredixSdk::new(&payer_private_key)?;
+    let access_key = env::var("DO_SPACES_KEY").expect("DO_SPACES_KEY not set");
+    let secret_key = env::var("DO_SPACES_SECRET").expect("DO_SPACES_SECRET not set");
+    let endpoint = env::var("DO_SPACES_ENDPOINT").expect("DO_SPACES_ENDPOINT not set");
+    let region = env::var("DO_SPACES_REGION").expect("DO_SPACES_REGION not set");
+    
+    // Configure the credentials provider
+    let credentials_provider = Credentials::new(
+        access_key,
+        secret_key,
+        None,
+        None,
+        "do-spaces",
+    );
+    
+    // Configure the S3 client
+    let config = Config::builder()
+
+        .region(Region::new(region))
+        .credentials_provider(credentials_provider)
+        .endpoint_url(endpoint.clone())
+        .force_path_style(true)
+        .build();
+
+    let s3 = S3Client::from_conf(config);
+
+    dbg!("S3 Client:", &s3);
+   
     let state = Arc::new(AppState {
         markets: RwLock::new(HashMap::new()),
         privy_client: Arc::new(client),
         rpc_client: Arc::new(rpc),
         predix_sdk: Arc::new(predix_sdk),
+        s3: Arc::new(s3),
     });
 
     let app = app::build_app(state);
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3030").await.unwrap();
     axum::serve(listener, app).await.unwrap();
+
+    //  let base_config = aws_config::from_env().region(region).load().await;
+    // let endpoint = std::env::var("DO_SPACES_ENDPOINT")?;
+    // let s3_config = Builder::from(&base_config)
+    // .endpoint_url(endpoint_url)
+    // let access_key_id =
+    //     env::var("DO_SPACES_KEY").expect("DO_SPACES_KEY environment variable not set");
+    // let secret_access_key =
+    //     env::var("DO_SPACES_SECRET").expect("DO_SPACES_SECRET environment variable not set");
+    // let region = std::env::var("DO_SPACES_REGION")?;
+    // let bucket = std::env::var("DO_SPACES_BUCKET")?;
+    // // let creds = Credentials::new(access_key_id, secret_access_key, None, None, "do-spaces");
+    // let config = aws_sdk_s3::config::Builder::from(&shared_config)
+    //     .region(Region::new(region))
+    //     .endpoint_resolver(Endpoint::immutable(
+    //         endpoint.parse().unwrap(),
+    //     ))
+    //     .credentials_provider(creds)
+    //     .build();
     Ok(())
 }

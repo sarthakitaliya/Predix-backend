@@ -2,8 +2,10 @@ use std::env;
 use std::str::FromStr;
 
 use anchor_client_sdk::PredixSdk;
+use aws_sdk_s3::error::DisplayErrorContext;
 use axum::{Extension, Json, extract::State, http::StatusCode};
 use solana_sdk::pubkey::Pubkey;
+use uuid::Uuid;
 
 use crate::{
     models::{
@@ -11,6 +13,7 @@ use crate::{
         auth::AuthUser,
     },
     state::state::Shared,
+    utils::s3::upload_market_metadata_to_do,
 };
 
 pub async fn create_market(
@@ -18,19 +21,40 @@ pub async fn create_market(
     Extension(user): Extension<AuthUser>,
     Json(payload): Json<CreateMarketRequest>,
 ) -> Result<Json<CreateMarketResponse>, (StatusCode, String)> {
+    dbg!("payload:", &payload);
+    let bucket = std::env::var("DO_SPACES_BUCKET").map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("DO_SPACES_BUCKET environment variable not set: {}", e),
+        )
+    })?;
+    dbg!("Using bucket:", &bucket);
     let collateral_mint = Pubkey::from_str(&payload.collateral_mint).map_err(|e| {
         (
             StatusCode::BAD_REQUEST,
             format!("Invalid collateral mint address: {}", e),
         )
     })?;
-
-    // SDK handles program creation internally
-    state.predix_sdk
+    let uuid = Uuid::new_v4();
+    let bytes = uuid.as_bytes();
+    let market_id = u64::from_le_bytes(bytes[0..8].try_into().unwrap());
+    dbg!("Generated market ID:", market_id);
+    let metadata_url =
+        upload_market_metadata_to_do(&state.s3, &bucket, market_id, &payload.metadata)
+            .await
+            .map_err(|e| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("Failed to upload market metadata: {}", e),
+                )
+            })?;
+    dbg!("Metadata URL:", &metadata_url);
+    state
+        .predix_sdk
         .create_market(
-            payload.market_id,
+            market_id,
             collateral_mint,
-            payload.metadata,
+            metadata_url,
             payload.expiration_timestamp,
         )
         .await
@@ -42,7 +66,7 @@ pub async fn create_market(
         })?;
 
     Ok(Json(CreateMarketResponse {
-        market_id: payload.market_id,
+        market_id: market_id,
         message: "Market created successfully".to_string(),
     }))
 }

@@ -4,11 +4,11 @@ use anchor_lang::prelude::*;
 #[derive(Debug, AnchorDeserialize)]
 pub struct MarketInitialized {
     pub market_id: u64,
-    pub market: Pubkey,
+    pub market_pda: Pubkey,
     pub authority: Pubkey,
     pub collateral_mint: Pubkey,
     pub collateral_vault: Pubkey,
-    pub metadata: String,
+    pub metadata_url: String,
     pub yes_mint: Pubkey,
     pub no_mint: Pubkey,
     pub expiration_timestamp: i64,
