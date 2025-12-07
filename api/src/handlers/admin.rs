@@ -4,12 +4,16 @@ use std::str::FromStr;
 use anchor_client_sdk::PredixSdk;
 use aws_sdk_s3::error::DisplayErrorContext;
 use axum::{Extension, Json, extract::State, http::StatusCode};
+use db::{models::market::MarketOutcome, queries::market::update_market_resolution};
 use solana_sdk::pubkey::Pubkey;
 use uuid::Uuid;
 
 use crate::{
     models::{
-        admin::{CreateMarketRequest, CreateMarketResponse},
+        admin::{
+            CreateMarketRequest, CreateMarketResponse, GetAllMarketsResponse, ResolveMarketRequest,
+            ResolveMarketResponse,
+        },
         auth::AuthUser,
     },
     state::state::Shared,
@@ -69,4 +73,53 @@ pub async fn create_market(
         market_id: market_id,
         message: "Market created successfully".to_string(),
     }))
+}
+
+pub async fn resolve_market(
+    State(state): State<Shared>,
+    Extension(user): Extension<AuthUser>,
+    Json(payload): Json<ResolveMarketRequest>,
+) -> Result<Json<ResolveMarketResponse>, (StatusCode, String)> {
+    dbg!("Resolving market with payload:", &payload);
+
+    let market_id = payload
+        .market_id
+        .parse::<u64>()
+        .map_err(|e| (StatusCode::BAD_REQUEST, format!("Invalid market id: {}", e)))?;
+    let outcome = match payload.outcome {
+        MarketOutcome::Yes => anchor_client_sdk::predix_program::types::MarketOutcome::Yes,
+        MarketOutcome::No => anchor_client_sdk::predix_program::types::MarketOutcome::No,
+        MarketOutcome::NotDecided => {
+            anchor_client_sdk::predix_program::types::MarketOutcome::Undecided
+        }
+    };
+    let tx = state
+        .predix_sdk
+        .set_winner(market_id, outcome)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to create set winner instruction: {}", e),
+            )
+        })?;
+    Ok(Json(ResolveMarketResponse {
+        tx_message: tx,
+        message: "Market resolved successfully".into(),
+    }))
+}
+
+pub async fn get_all_markets(
+    State(state): State<Shared>,
+    Extension(user): Extension<AuthUser>,
+) -> Result<Json<GetAllMarketsResponse>, (StatusCode, String)> {
+    let markets = db::queries::market::list_all_markets(&state.db_pool)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to fetch markets: {}", e),
+            )
+        })?;
+    Ok(Json(GetAllMarketsResponse { markets }))
 }

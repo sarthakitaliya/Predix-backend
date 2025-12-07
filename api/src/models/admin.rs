@@ -1,5 +1,5 @@
+use db::models::market::{Market, MarketOutcome, MarketStatus};
 use serde::{Deserialize, Serialize};
-
 
 #[derive(Deserialize, Debug)]
 pub struct CreateMarketRequest {
@@ -19,5 +19,21 @@ pub struct MarketMetadata {
 #[derive(Serialize, Debug)]
 pub struct CreateMarketResponse {
     pub market_id: u64,
+    pub message: String,
+}
+
+#[derive(Serialize, Debug)]
+pub struct GetAllMarketsResponse {
+    pub markets: Vec<Market>,
+}
+#[derive(Deserialize, Debug)]
+pub struct ResolveMarketRequest {
+    pub market_id: String,
+    pub outcome: MarketOutcome,
+}
+
+#[derive(Serialize, Debug)]
+pub struct ResolveMarketResponse {
+    pub tx_message: String,
     pub message: String,
 }

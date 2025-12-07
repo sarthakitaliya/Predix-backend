@@ -22,7 +22,7 @@ pub enum MarketOutcome {
     NotDecided,
 }
 
-#[derive(Debug, FromRow)]
+#[derive(Debug, FromRow, Serialize, Deserialize)]
 pub struct Market {
     pub id: Uuid,
     pub market_id: String,

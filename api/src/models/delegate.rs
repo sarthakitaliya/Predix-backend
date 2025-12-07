@@ -5,7 +5,7 @@ use crate::models::orderbook::ShareType;
 
 #[derive(Deserialize, Debug)]
 pub struct ApproveRequest {
-    pub market_id: u64,
+    pub market_id: String,
     pub side: Side, // "bid" or "ask"
     pub share: ShareType,
     pub amount: u64,
@@ -21,7 +21,7 @@ pub struct ApproveRes {
 #[derive(Deserialize, Debug)]
 pub struct CheckRequest {
     pub collateral_mint: String,
-    pub market_id: u64,
+    pub market_id: String,
 }
 #[derive(Serialize, Debug)]
 pub struct CheckResponse {

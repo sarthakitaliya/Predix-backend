@@ -15,6 +15,7 @@ use anyhow::{Ok, Result};
 use solana_sdk::{message::Message, transaction::Transaction};
 use uuid::Uuid;
 
+use crate::predix_program::types::MarketOutcome;
 pub use crate::{
     predix_program::{
         client::{accounts, args},
@@ -121,7 +122,7 @@ impl PredixSdk {
 
         let args = args::ExecuteMatchMulti { fills: match_fills };
 
-        let accounts = accounts::ExecuteMatchMulti{
+        let accounts = accounts::ExecuteMatchMulti {
             market: market_pda,
             admin: self.keypair.pubkey(),
             token_program: spl_token::ID,
@@ -147,6 +148,7 @@ impl PredixSdk {
         collateral_mint: &Pubkey,
         amount: u64,
     ) -> Result<String> {
+        dbg!("Splitting order on market ID: {}", market_id);
         let (market_pda, _bump) = derive_market_pda(market_id, &predix_program::ID);
         let (vault_pda, _bump) = vault_pda(market_id, &predix_program::ID);
         let ((yes_mint_pda, _), (no_mint_pda, _)) =
@@ -243,6 +245,37 @@ impl PredixSdk {
             .instructions()?;
 
         dbg!("Merge order ix: {:?}", &ix_vec);
+        let recent_blockhash = self.program.rpc().get_latest_blockhash().await?;
+        let message = Message::new(&[ix_vec.remove(0)], Some(&self.keypair.pubkey()));
+        let mut tx = Transaction::new_unsigned(message);
+        tx.try_partial_sign(&[self.keypair.as_ref()], recent_blockhash)?;
+
+        let serialized = bincode::serialize(&tx)?;
+        #[allow(deprecated)]
+        let tx_base64 = base64::encode(serialized);
+
+        Ok(tx_base64)
+    }
+
+    pub async fn set_winner(&self, market_id: u64, outcome: MarketOutcome) -> Result<String> {
+        let (market_pda, _bump) = derive_market_pda(market_id, &predix_program::ID);
+        dbg!("Market PDA:", market_pda);
+
+        let accounts = accounts::SetWinner {
+            market: market_pda,
+            admin: self.keypair.pubkey(),
+        };
+        let args = args::SetWinner {
+            is_settled: true,
+            outcome,
+        };
+        let mut ix_vec = self
+            .program
+            .request()
+            .accounts(accounts)
+            .args(args)
+            .instructions()?;
+        
         let recent_blockhash = self.program.rpc().get_latest_blockhash().await?;
         let message = Message::new(&[ix_vec.remove(0)], Some(&self.keypair.pubkey()));
         let mut tx = Transaction::new_unsigned(message);

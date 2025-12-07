@@ -45,6 +45,6 @@ pub struct RewardsClaimed {
 #[derive(Debug, AnchorDeserialize)]
 pub struct MarketSettled {
     pub market_id: u64,
-    pub market: Pubkey,
+    pub market_pda: Pubkey,
     pub outcome: MarketOutcome,
 }

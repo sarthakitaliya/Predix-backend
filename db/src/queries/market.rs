@@ -47,20 +47,31 @@ pub async fn create_market(
     Ok(rec)
 }
 
-pub async fn get_market_by_id(pool: &PgPool, id: Uuid) -> Result<Market, Error> {
+pub async fn get_market_by_id(pool: &PgPool, market_id: String) -> Result<Market, Error> {
     let rec = sqlx::query_as::<_, Market>(
-        r#"SELECT id, title, description, status, closed_at, created_at FROM markets WHERE id = $1"#,
+        r#"SELECT * FROM markets WHERE market_id = $1"#,
     )
-    .bind(id)
+    .bind(market_id)
     .fetch_one(pool)
     .await?;
 
     Ok(rec)
 }
 
-pub async fn list_open_markets(pool: &PgPool) -> Result<Vec<Market>, Error> {
+pub async fn list_markets_by_status(pool: &PgPool, status: MarketStatus) -> Result<Vec<Market>, Error> {
     let recs = sqlx::query_as::<_, Market>(
-        r#"SELECT id, title, description, status, closed_at, created_at FROM markets WHERE status = 'open'"#,
+        r#"SELECT * FROM markets WHERE status = $1"#,
+    )
+    .bind(status)
+    .fetch_all(pool)
+    .await?;
+
+    Ok(recs)
+}
+
+pub async fn list_all_markets(pool: &PgPool) -> Result<Vec<Market>, Error> {
+    let recs = sqlx::query_as::<_, Market>(
+        r#"SELECT * FROM markets"#,
     )
     .fetch_all(pool)
     .await?;
@@ -70,17 +81,21 @@ pub async fn list_open_markets(pool: &PgPool) -> Result<Vec<Market>, Error> {
 
 pub async fn update_market_resolution(
     pool: &PgPool,
-    id: Uuid,
+    market_id: String,
     status: MarketStatus,
-) -> Result<Market, Error> {
-    let rec = sqlx::query_as::<_, Market>(
-        r#"UPDATE markets SET status = $1 WHERE id = $2 
-        RETURNING id, title, description, status, closed_at, created_at"#,
+    outcome: MarketOutcome,
+    resolve_time: DateTime<Utc>,
+) -> Result<(), Error> {
+    let rec = sqlx::query(
+        r#"UPDATE markets SET status = $1, outcome = $2, resolve_time = $3 WHERE market_id = $4"#,
     )
     .bind(status)
-    .bind(id)
-    .fetch_one(pool)
-    .await?;
+    .bind(outcome)
+    .bind(resolve_time)
+    .bind(market_id)
+    .execute(pool)
+    .await?;    
 
-    Ok(rec)
+    Ok(())
+
 }

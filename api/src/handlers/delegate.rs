@@ -9,7 +9,9 @@ use solana_sdk::{
     instruction::Instruction, message::Message, pubkey::Pubkey, signature::Keypair, signer::Signer,
     transaction::Transaction,
 };
-use spl_associated_token_account::{get_associated_token_address, instruction::create_associated_token_account_idempotent};
+use spl_associated_token_account::{
+    get_associated_token_address, instruction::create_associated_token_account_idempotent,
+};
 use spl_token::instruction::approve_checked;
 use std::env;
 
@@ -60,13 +62,16 @@ pub async fn delegate_approval(
                 format!("Invalid USDC mint address: {}", e),
             )
         })?;
-
-    let (market_pda, _bump) = derive_market_pda(payload.market_id);
+    let market_id_str = payload.market_id.clone();
+    let market_id = market_id_str
+        .parse::<u64>()
+        .map_err(|e| (StatusCode::BAD_REQUEST, format!("Invalid market id: {}", e)))?;
+    let (market_pda, _bump) = derive_market_pda(market_id);
     dbg!("Market PDA: {:?}", &market_pda);
     let mut ixs: Vec<Instruction> = Vec::new();
     let token_mint;
     let (yes_mint_pda, no_mint_pda) =
-        derive_yes_and_no_mint_pdas(payload.market_id, &predix_program::ID);
+        derive_yes_and_no_mint_pdas(market_id, &predix_program::ID);
     if payload.side == Side::Bid {
         match payload.share {
             ShareType::Yes => {
@@ -116,10 +121,7 @@ pub async fn delegate_approval(
                 token_mint = no_mint_pda.0;
             }
         }
-        let token_ata = get_associated_token_address(
-            &wallet_pubkey,
-            &token_mint,
-        );
+        let token_ata = get_associated_token_address(&wallet_pubkey, &token_mint);
         let approve_ix = approve_checked(
             &spl_token::id(),
             &token_ata,
@@ -172,7 +174,11 @@ pub async fn check(
     Json(payload): Json<CheckRequest>,
 ) -> Result<Json<CheckResponse>, (StatusCode, String)> {
     dbg!("Check payload: {:?}", &payload);
-    let (market_pda, bump) = derive_market_pda(payload.market_id);
+    let market_id_str = payload.market_id.clone();
+    let market_id = market_id_str
+        .parse::<u64>()
+        .map_err(|e| (StatusCode::BAD_REQUEST, format!("Invalid market id: {}", e)))?;
+    let (market_pda, bump) = derive_market_pda(market_id);
     dbg!("Market PDA: {:?}", &market_pda);
     let a = verify_delegation(
         &state.rpc_client,

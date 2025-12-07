@@ -11,7 +11,7 @@ pub enum ShareType {
 
 #[derive(Deserialize)]
 pub struct PlaceOrderReq {
-    pub market_id: u64,
+    pub market_id: String,
     pub collateral_mint: String,
     pub side: Side, // "bid" or "ask"
     pub share: ShareType,
@@ -29,7 +29,7 @@ pub struct PlaceOrderRes {
 
 #[derive(Deserialize)]
 pub struct SplitOrderReq {
-    pub market_id: u64,
+    pub market_id: String,
     pub collateral_mint: String,
     pub amount: u64,
 }
@@ -42,7 +42,7 @@ pub struct SplitOrderRes {
 
 #[derive(Deserialize)]
 pub struct MergeOrderReq {
-    pub market_id: u64,
+    pub market_id: String,
     pub collateral_mint: String,
     pub amount: u64,
 }
@@ -55,7 +55,7 @@ pub struct MergeOrderRes {
 
 #[derive(Deserialize)]
 pub struct CancelReq {
-    pub market_id: u64,
+    pub market_id: String,
     pub order_id: Uuid,
     pub side: Side, // "bid" or "ask"
     pub share: ShareType,

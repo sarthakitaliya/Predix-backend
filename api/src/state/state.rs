@@ -15,6 +15,7 @@ pub struct AppState {
     pub rpc_client: Arc<RpcClient>,
     pub predix_sdk: Arc<PredixSdk>,
     pub s3: Arc<Client>,
+    pub db_pool: Arc<sqlx::PgPool>,
 }
 
 pub type Shared = Arc<AppState>;

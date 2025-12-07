@@ -1,10 +1,14 @@
-use anchor_client::{
-    solana_sdk::{commitment_config::CommitmentConfig, signature::Keypair},
-};
+use anchor_client::solana_sdk::{commitment_config::CommitmentConfig, signature::Keypair};
 use anchor_client_sdk::PredixSdk;
 use anchor_lang::declare_program;
 use aws_config::{BehaviorVersion, Region};
-use aws_sdk_s3::{Client as S3Client, Config, config::{ Builder, Credentials, endpoint::{self, Endpoint}}};
+use aws_sdk_s3::{
+    Client as S3Client, Config,
+    config::{
+        Builder, Credentials,
+        endpoint::{self, Endpoint},
+    },
+};
 use dotenvy::dotenv;
 use privy_rs::PrivyClient;
 use solana_client::nonblocking::rpc_client::RpcClient;
@@ -58,19 +62,12 @@ async fn main() -> anyhow::Result<()> {
     let secret_key = env::var("DO_SPACES_SECRET").expect("DO_SPACES_SECRET not set");
     let endpoint = env::var("DO_SPACES_ENDPOINT").expect("DO_SPACES_ENDPOINT not set");
     let region = env::var("DO_SPACES_REGION").expect("DO_SPACES_REGION not set");
-    
+
     // Configure the credentials provider
-    let credentials_provider = Credentials::new(
-        access_key,
-        secret_key,
-        None,
-        None,
-        "do-spaces",
-    );
-    
+    let credentials_provider = Credentials::new(access_key, secret_key, None, None, "do-spaces");
+
     // Configure the S3 client
     let config = Config::builder()
-
         .region(Region::new(region))
         .credentials_provider(credentials_provider)
         .endpoint_url(endpoint.clone())
@@ -78,15 +75,16 @@ async fn main() -> anyhow::Result<()> {
         .build();
 
     let s3 = S3Client::from_conf(config);
-
-    dbg!("S3 Client:", &s3);
-   
+    let db_database_url =
+        env::var("DATABASE_URL").expect("DATABASE_URL environment variable not set");
+    let db_pool = db::Db::new(&db_database_url).await?.pool;
     let state = Arc::new(AppState {
         markets: RwLock::new(HashMap::new()),
         privy_client: Arc::new(client),
         rpc_client: Arc::new(rpc),
         predix_sdk: Arc::new(predix_sdk),
         s3: Arc::new(s3),
+        db_pool: Arc::new(db_pool),
     });
 
     let app = app::build_app(state);

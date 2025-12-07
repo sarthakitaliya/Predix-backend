@@ -1,9 +1,10 @@
+use anchor_client_sdk::predix_program::types::MarketOutcome;
 use anchor_lang::prelude::*;
 use chrono::Utc;
 use db::{
     Db,
-    models::market::{self, MarketOutcome, MarketStatus},
-    queries::market::create_market,
+    models::market::{self, MarketStatus},
+    queries::market::{create_market, update_market_resolution},
 };
 use std::str::FromStr;
 use uuid::Uuid;
@@ -70,11 +71,12 @@ async fn main() -> Result<()> {
                                 let no_mint = event.no_mint.to_string();
                                 let usdc_vault = event.collateral_vault.to_string();
                                 let status = MarketStatus::Open;
-                                let outcome = MarketOutcome::NotDecided;
+                                let outcome = market::MarketOutcome::NotDecided;
                                 let close_time = chrono::DateTime::<Utc>::from_timestamp(
                                     event.expiration_timestamp as i64,
                                     0,
-                                ).unwrap();
+                                )
+                                .unwrap();
                                 let updated_at = chrono::Utc::now();
                                 let market = create_market(
                                     &pool,
@@ -145,7 +147,24 @@ async fn main() -> Result<()> {
                         println!("MarketSettled event payload: {:?}", payload);
                         match crate::types::MarketSettled::try_from_slice(payload) {
                             Ok(event) => {
+                                dbg!("Processing MarketSettled event: {}", &event);
+                                let resolve_time = chrono::Utc::now();
+                                let market_id = event.market_id.to_string();
+                                let outcome =  match event.outcome {
+                                    MarketOutcome::Yes => market::MarketOutcome::Yes,
+                                    MarketOutcome::No => market::MarketOutcome::No,
+                                    MarketOutcome::Undecided => market::MarketOutcome::NotDecided,
+                                };
+                                let market = update_market_resolution(
+                                    &pool,
+                                    market_id,
+                                    MarketStatus::Resolved,
+                                    outcome,
+                                    resolve_time,
+                                )
+                                .await?;
                                 println!("Decoded MarketSettled event: {:?}", event);
+                                dbg!("market settled event processed: {}", market);
                             }
                             Err(e) => {
                                 println!("Failed to decode MarketSettled event: {}", e);
