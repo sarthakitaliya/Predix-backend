@@ -3,7 +3,6 @@ use serde::{Deserialize, Serialize};
 use sqlx::prelude::{FromRow, Type};
 use uuid::Uuid;
 
-
 #[derive(Debug, Clone, PartialEq, Eq, Type, Serialize, Deserialize)]
 #[sqlx(type_name = "share_type", rename_all = "lowercase")]
 #[serde(rename_all = "lowercase")]
@@ -25,7 +24,7 @@ pub enum OrderStatus {
 pub struct CloseOrder {
     pub id: Uuid,
     pub user_id: Uuid,
-    pub  market_id: Uuid,
+    pub market_id: Uuid,
     #[sqlx(rename = "type")]
     pub share_type: ShareType,
     pub price: f64,

@@ -1,4 +1,4 @@
-use db::models::market::{Market, MarketOutcome, MarketStatus};
+use db::models::market::{Market, MarketOutcome};
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Debug)]

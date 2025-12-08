@@ -1,36 +1,15 @@
-use anchor_client::solana_sdk::{commitment_config::CommitmentConfig, signature::Keypair};
+use anchor_client::solana_sdk::commitment_config::CommitmentConfig;
 use anchor_client_sdk::PredixSdk;
 use anchor_lang::declare_program;
-use aws_config::{BehaviorVersion, Region};
-use aws_sdk_s3::{
-    Client as S3Client, Config,
-    config::{
-        Builder, Credentials,
-        endpoint::{self, Endpoint},
-    },
-};
+use aws_config::Region;
+use aws_sdk_s3::{Client as S3Client, Config, config::Credentials};
 use dotenvy::dotenv;
-use privy_rs::PrivyClient;
 use solana_client::nonblocking::rpc_client::RpcClient;
-use std::{collections::HashMap, env, rc::Rc, sync::Arc};
-use tower_http::cors::CorsLayer;
+use std::{collections::HashMap, env, sync::Arc};
 
-use axum::{
-    Router,
-    http::{
-        HeaderName, HeaderValue, Method,
-        header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE},
-    },
-    middleware::from_fn,
-    routing::{get, post},
-};
 use tokio::sync::RwLock;
 
-use crate::{
-    auth::{auth::auth_middleware, require_admin::require_admin},
-    handlers::delegate::delegate_approval,
-    state::state::AppState,
-};
+use crate::state::state::AppState;
 // use anchor_lang::prelude::*;
 
 mod app;
@@ -48,11 +27,7 @@ declare_program!(predix_program);
 #[allow(deprecated)]
 async fn main() -> anyhow::Result<()> {
     dotenv().ok();
-    let app_id = env::var("PRIVY_APP_ID").expect("PRIVY_APP_ID environment variable not set");
-    let app_secret =
-        env::var("PRIVY_APP_SECRET").expect("PRIVY_APP_SECRET environment variable not set");
 
-    let client = PrivyClient::new(app_id, app_secret)?;
     let rpc_url = env::var("SOLANA_RPC_URL")?;
     let rpc = RpcClient::new_with_commitment(rpc_url, CommitmentConfig::confirmed());
     let payer_private_key =
@@ -80,7 +55,6 @@ async fn main() -> anyhow::Result<()> {
     let db_pool = db::Db::new(&db_database_url).await?.pool;
     let state = Arc::new(AppState {
         markets: RwLock::new(HashMap::new()),
-        privy_client: Arc::new(client),
         rpc_client: Arc::new(rpc),
         predix_sdk: Arc::new(predix_sdk),
         s3: Arc::new(s3),

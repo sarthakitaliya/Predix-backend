@@ -1,22 +1,19 @@
 use std::sync::Arc;
 
 use axum::{
-    Extension, Json, Router,
+    Router,
     extract::State,
     http::{
-        HeaderName, HeaderValue, Method, StatusCode,
+        HeaderName, HeaderValue, Method,
         header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE},
     },
-    routing::{get, post},
+    routing::{get},
 };
 use tower_http::cors::CorsLayer;
 
 use crate::{
-    handlers::delegate::delegate_approval,
-    models::auth::AuthUser,
     routes,
     state::state::{AppState, Shared},
-    utils::solana::verify_delegation,
 };
 
 pub async fn health_check(State(_state): State<Shared>) -> &'static str {
@@ -37,6 +34,7 @@ pub fn build_app(state: Arc<AppState>) -> Router {
         .route("/health-check", get(health_check))
         .nest("/admin", routes::admin::router())
         .nest("/markets", routes::markets::router())
+        .nest("/orders", routes::orders::router())
         .nest("/orderbook", routes::orderbook::router())
         .layer(cors)
         .with_state(state);

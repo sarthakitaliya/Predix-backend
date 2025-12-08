@@ -1,11 +1,21 @@
 use std::sync::Arc;
 
-use axum::{Router, routing::get};
+use axum::{
+    Router, middleware::from_fn, routing::{get, post}
+};
 
-use crate::{handlers::market::{get_all_markets_by_status, get_market_by_id}, state::state::AppState};
+use crate::{
+    auth::auth::auth_middleware, handlers::market::{delegate_approval, get_all_markets_by_status, get_market_by_id}, state::state::AppState
+};
 
 pub fn router() -> Router<Arc<AppState>> {
-    Router::new()
+    let public = Router::new()
         .route("/", get(get_all_markets_by_status))
-        .route("/{id}", get(get_market_by_id))
+        .route("/{id}", get(get_market_by_id));
+    
+    let protected = Router::new()
+        .route("/delegate", post(delegate_approval))
+        .route_layer(from_fn(auth_middleware));
+
+    public.merge(protected)
 }

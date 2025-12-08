@@ -7,7 +7,6 @@ use db::{
     queries::market::{create_market, update_market_resolution},
 };
 use std::str::FromStr;
-use uuid::Uuid;
 
 use anyhow::Result;
 use solana_client::{

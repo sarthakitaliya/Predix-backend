@@ -1,10 +1,7 @@
-use std::env;
 use std::str::FromStr;
 
-use anchor_client_sdk::PredixSdk;
-use aws_sdk_s3::error::DisplayErrorContext;
 use axum::{Extension, Json, extract::State, http::StatusCode};
-use db::{models::market::MarketOutcome, queries::market::update_market_resolution};
+use db::{models::market::MarketOutcome};
 use solana_sdk::pubkey::Pubkey;
 use uuid::Uuid;
 
@@ -22,7 +19,7 @@ use crate::{
 
 pub async fn create_market(
     State(state): State<Shared>,
-    Extension(user): Extension<AuthUser>,
+    Extension(_user): Extension<AuthUser>,
     Json(payload): Json<CreateMarketRequest>,
 ) -> Result<Json<CreateMarketResponse>, (StatusCode, String)> {
     dbg!("payload:", &payload);
@@ -77,7 +74,7 @@ pub async fn create_market(
 
 pub async fn resolve_market(
     State(state): State<Shared>,
-    Extension(user): Extension<AuthUser>,
+    Extension(_user): Extension<AuthUser>,
     Json(payload): Json<ResolveMarketRequest>,
 ) -> Result<Json<ResolveMarketResponse>, (StatusCode, String)> {
     dbg!("Resolving market with payload:", &payload);
@@ -111,7 +108,7 @@ pub async fn resolve_market(
 
 pub async fn get_all_markets(
     State(state): State<Shared>,
-    Extension(user): Extension<AuthUser>,
+    Extension(_user): Extension<AuthUser>,
 ) -> Result<Json<GetAllMarketsResponse>, (StatusCode, String)> {
     let markets = db::queries::market::list_all_markets(&state.db_pool)
         .await
