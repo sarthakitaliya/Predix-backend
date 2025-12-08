@@ -92,23 +92,5 @@ async fn main() -> anyhow::Result<()> {
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3030").await.unwrap();
     axum::serve(listener, app).await.unwrap();
 
-    //  let base_config = aws_config::from_env().region(region).load().await;
-    // let endpoint = std::env::var("DO_SPACES_ENDPOINT")?;
-    // let s3_config = Builder::from(&base_config)
-    // .endpoint_url(endpoint_url)
-    // let access_key_id =
-    //     env::var("DO_SPACES_KEY").expect("DO_SPACES_KEY environment variable not set");
-    // let secret_access_key =
-    //     env::var("DO_SPACES_SECRET").expect("DO_SPACES_SECRET environment variable not set");
-    // let region = std::env::var("DO_SPACES_REGION")?;
-    // let bucket = std::env::var("DO_SPACES_BUCKET")?;
-    // // let creds = Credentials::new(access_key_id, secret_access_key, None, None, "do-spaces");
-    // let config = aws_sdk_s3::config::Builder::from(&shared_config)
-    //     .region(Region::new(region))
-    //     .endpoint_resolver(Endpoint::immutable(
-    //         endpoint.parse().unwrap(),
-    //     ))
-    //     .credentials_provider(creds)
-    //     .build();
     Ok(())
 }
