@@ -12,9 +12,12 @@ pub fn router() -> Router<Arc<AppState>> {
     let public = Router::new()
         .route("/", get(get_all_markets_by_status))
         .route("/{id}", get(get_market_by_id));
-    
+
     let protected = Router::new()
         .route("/delegate", post(delegate_approval))
+        //TODO: add handlers for position and history
+        // .route("/position", post(delegate_approval))
+        // .route("/history", post(delegate_approval))
         .route_layer(from_fn(auth_middleware));
 
     public.merge(protected)

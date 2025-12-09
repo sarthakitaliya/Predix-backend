@@ -1,21 +1,22 @@
-use std::str::FromStr;
-
 use anchor_client_sdk::{
     predix_program::types::TradeSide,
     utils::{get_match_fills, get_remaining_accounts},
 };
 use axum::{Extension, Json, extract::State, http::StatusCode};
+use chrono::prelude::*;
 use matching::types::OrderEntry;
 use solana_sdk::pubkey::Pubkey;
+use std::str::FromStr;
 use tokio::sync::{mpsc, oneshot};
-use uuid::Uuid;
+use uuid::{Uuid, timestamp};
 
 use crate::{
     engine::engine::{EngineMsg, run_market_engine},
     models::{
         auth::AuthUser,
         orders::{
-            CancelReq, CancelRes, MergeOrderReq, MergeOrderRes, PlaceOrderReq, PlaceOrderRes, ShareType, SplitOrderReq, SplitOrderRes
+            CancelReq, CancelRes, MergeOrderReq, MergeOrderRes, PlaceOrderReq, PlaceOrderRes,
+            ShareType, SplitOrderReq, SplitOrderRes,
         },
     },
     state::state::Shared,
@@ -28,6 +29,8 @@ pub async fn place_order(
     Json(req): Json<PlaceOrderReq>,
 ) -> Result<Json<PlaceOrderRes>, (StatusCode, String)> {
     let order_id = Uuid::new_v4();
+    let current_time = Local::now();
+    println!("currenttime ---> {}",current_time.format("%Y-%m-%d %H:%M:%S"));
     let market_id_str = req.market_id.clone();
     let market_id = market_id_str
         .parse::<u64>()
@@ -36,6 +39,7 @@ pub async fn place_order(
         id: order_id,
         user_address: user.solana_address.clone(),
         market_id: market_id,
+        side: req.side.clone(),
         price: req.price,
         qty: req.qty,
     };
@@ -110,6 +114,8 @@ pub async fn place_order(
                 format!("Failed to place order on chain: {}", e),
             )
         })?;
+    let current_time = Local::now();
+    println!(" lastime ---> {}", current_time.format("%Y-%m-%d %H:%M:%S"));
     Ok(Json(PlaceOrderRes {
         order_id,
         trades,

@@ -15,7 +15,7 @@ pub async fn auth_middleware(
     mut req: Request,
     next: Next,
 ) -> Result<Response, StatusCode> {
-    dbg!("Auth middleware triggered");
+    // dbg!("Auth middleware triggered");
     let auth_header = headers.get("privy-id-token").and_then(|v| v.to_str().ok());
     let access_token = headers
         .get("authorization")

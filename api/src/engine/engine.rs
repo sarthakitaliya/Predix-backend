@@ -1,6 +1,6 @@
 
 
-use matching::{orderbook::market::{MarketBooks}, types::{OrderEntry, Side, Trade, SnapshotData}};
+use matching::{orderbook::market::MarketBooks, types::{OpenOrder, OrderEntry, Side, SnapshotData, Trade}};
 use rust_decimal::Decimal;
 use tokio::sync::{mpsc, oneshot};
 use uuid::Uuid;
@@ -27,6 +27,11 @@ pub enum EngineMsg {
             (Vec<SnapshotData>, Vec<SnapshotData>),
             (Vec<SnapshotData>, Vec<SnapshotData>),
         )>,
+    },
+    FindOpenOrders {
+        user_address: String,
+        market_id: String,
+        resp: oneshot::Sender<Vec<OpenOrder>>,
     },
 }
 
@@ -71,6 +76,10 @@ pub async fn run_market_engine(mut rx: mpsc::Receiver<EngineMsg>) {
             EngineMsg::Snapshot { resp } => {
                 let snapshot = book.snapshot();
                 let _ = resp.send(snapshot);
+            },
+            EngineMsg::FindOpenOrders { user_address, market_id, resp } => {
+                let open_orders = book.find_open_orders(&user_address, &market_id);
+                let _ = resp.send(open_orders);
             }
         }
     }

@@ -81,6 +81,7 @@ impl OrderBook {
                         id: order.id,
                         user_address: order.user_address.clone(),
                         market_id: order.market_id.clone(),
+                        side: Side::Bid,
                         price: order.price,
                         qty: order.qty,
                     };
@@ -131,6 +132,7 @@ impl OrderBook {
                         id: order.id,
                         user_address: order.user_address.clone(),
                         market_id: order.market_id.clone(),
+                        side: Side::Ask,
                         price: order.price.clone(),
                         qty: order.qty.clone(),
                     };
@@ -158,7 +160,7 @@ impl OrderBook {
                 }
                 return (true, "done".to_string());
             }
-        }else{ 
+        } else {
             return (false, "Not found".to_string());
         }
         (false, "something went wrong".to_string())
