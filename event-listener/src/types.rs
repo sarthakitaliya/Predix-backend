@@ -17,28 +17,30 @@ pub struct MarketInitialized {
 #[derive(Debug, AnchorDeserialize)]
 pub struct MatchExecuted {
     pub market_id: u64,
-    pub market: Pubkey,
+    pub market_pda: Pubkey,
     pub admin: Pubkey,
+    pub buyer: Pubkey,
+    pub seller: Pubkey,
     pub fills_executed: Vec<MatchFill>,
 }
 #[derive(Debug, AnchorDeserialize)]
 pub struct TokensSplit {
     pub market_id: u64,
-    pub market: Pubkey,
+    pub market_pda: Pubkey,
     pub user: Pubkey,
     pub amount: u64,
 }
 #[derive(Debug, AnchorDeserialize)]
 pub struct TokensMerged {
     pub market_id: u64,
-    pub market: Pubkey,
+    pub market_pda: Pubkey,
     pub user: Pubkey,
     pub amount: u64,
 }
 #[derive(Debug, AnchorDeserialize)]
 pub struct RewardsClaimed {
     pub market_id: u64,
-    pub market: Pubkey,
+    pub market_pda: Pubkey,
     pub user: Pubkey,
     pub amount: u64,
 }

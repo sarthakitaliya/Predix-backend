@@ -988,11 +988,19 @@
             "type": "u64"
           },
           {
-            "name": "market",
+            "name": "market_pda",
             "type": "pubkey"
           },
           {
             "name": "admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "buyer",
+            "type": "pubkey"
+          },
+          {
+            "name": "seller",
             "type": "pubkey"
           },
           {
@@ -1042,7 +1050,7 @@
             "type": "u64"
           },
           {
-            "name": "market",
+            "name": "market_pda",
             "type": "pubkey"
           },
           {
@@ -1066,7 +1074,7 @@
             "type": "u64"
           },
           {
-            "name": "market",
+            "name": "market_pda",
             "type": "pubkey"
           },
           {
@@ -1090,7 +1098,7 @@
             "type": "u64"
           },
           {
-            "name": "market",
+            "name": "market_pda",
             "type": "pubkey"
           },
           {

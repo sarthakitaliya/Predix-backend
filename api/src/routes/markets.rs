@@ -17,7 +17,6 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/delegate", post(delegate_approval))
         //TODO: add handlers for position and history
         // .route("/position", post(delegate_approval))
-        // .route("/history", post(delegate_approval))
         .route_layer(from_fn(auth_middleware));
 
     public.merge(protected)
