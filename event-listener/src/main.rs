@@ -6,7 +6,7 @@ use db::{
     models::market::{self, MarketStatus},
     queries::market::{create_market, update_market_resolution},
 };
-use std::str::FromStr;
+use std::{path::Path, str::FromStr};
 
 use anyhow::Result;
 use solana_client::{
@@ -18,11 +18,13 @@ use solana_sdk::pubkey::Pubkey;
 use tokio_stream::StreamExt;
 
 use crate::types::MarketInitialized;
+use dotenvy::from_path;
 mod types;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    dotenvy::dotenv().ok();
+    from_path(Path::new("../.env")).ok();
+
     let database_url = std::env::var("DATABASE_URL")?;
     let program_id = std::env::var("PROGRAM_ID")?;
     let rpc_url =
@@ -149,7 +151,7 @@ async fn main() -> Result<()> {
                                 dbg!("Processing MarketSettled event: {}", &event);
                                 let resolve_time = chrono::Utc::now();
                                 let market_id = event.market_id.to_string();
-                                let outcome =  match event.outcome {
+                                let outcome = match event.outcome {
                                     MarketOutcome::Yes => market::MarketOutcome::Yes,
                                     MarketOutcome::No => market::MarketOutcome::No,
                                     MarketOutcome::Undecided => market::MarketOutcome::NotDecided,

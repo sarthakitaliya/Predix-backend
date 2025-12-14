@@ -3,9 +3,9 @@ use anchor_client_sdk::PredixSdk;
 use anchor_lang::declare_program;
 use aws_config::Region;
 use aws_sdk_s3::{Client as S3Client, Config, config::Credentials};
-use dotenvy::dotenv;
+use dotenvy::{dotenv, from_path};
 use solana_client::nonblocking::rpc_client::RpcClient;
-use std::{collections::HashMap, env, sync::Arc};
+use std::{collections::HashMap, env, sync::Arc, path::Path};
 
 use tokio::sync::RwLock;
 
@@ -26,7 +26,7 @@ declare_program!(predix_program);
 #[tokio::main]
 #[allow(deprecated)]
 async fn main() -> anyhow::Result<()> {
-    dotenv().ok();
+    from_path(Path::new("../.env")).ok();
 
     let rpc_url = env::var("SOLANA_RPC_URL")?;
     let rpc = RpcClient::new_with_commitment(rpc_url, CommitmentConfig::confirmed());
