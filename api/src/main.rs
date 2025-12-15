@@ -27,8 +27,10 @@ declare_program!(predix_program);
 #[allow(deprecated)]
 async fn main() -> anyhow::Result<()> {
     from_path(Path::new("../.env")).ok();
+    print!("Loaded .env file\n");
 
     let rpc_url = env::var("SOLANA_RPC_URL")?;
+    print!("Using RPC URL: {}\n", rpc_url);
     let rpc = RpcClient::new_with_commitment(rpc_url, CommitmentConfig::confirmed());
     let payer_private_key =
         env::var("FEE_PAYER_PRIVATE_KEY").expect("FEE_PAYER_PRIVATE_KEY must be set");
@@ -37,7 +39,7 @@ async fn main() -> anyhow::Result<()> {
     let secret_key = env::var("DO_SPACES_SECRET").expect("DO_SPACES_SECRET not set");
     let endpoint = env::var("DO_SPACES_ENDPOINT").expect("DO_SPACES_ENDPOINT not set");
     let region = env::var("DO_SPACES_REGION").expect("DO_SPACES_REGION not set");
-
+    
     // Configure the credentials provider
     let credentials_provider = Credentials::new(access_key, secret_key, None, None, "do-spaces");
 

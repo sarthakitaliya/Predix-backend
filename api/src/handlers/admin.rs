@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{env, str::FromStr};
 
 use axum::{Extension, Json, extract::State, http::StatusCode};
 use db::{models::market::MarketOutcome};
@@ -110,6 +110,8 @@ pub async fn get_all_markets(
     State(state): State<Shared>,
     Extension(_user): Extension<AuthUser>,
 ) -> Result<Json<GetAllMarketsResponse>, (StatusCode, String)> {
+    let endpoint = env::var("DO_SPACES_ENDPOINT").expect("DO_SPACES_ENDPOINT not set");
+    print!("Endpoint: {}", endpoint);
     let markets = db::queries::market::list_all_markets(&state.db_pool)
         .await
         .map_err(|e| {
