@@ -38,7 +38,6 @@ pub struct LinkedAccount {
 
 #[derive(Debug, Clone)]
 pub struct AuthUser {
-    pub access_token: String,
     pub wallet_id: String,
     pub email: String,
     pub name: String,

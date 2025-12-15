@@ -7,7 +7,7 @@ use axum::{
         HeaderName, HeaderValue, Method,
         header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE},
     },
-    routing::{get},
+    routing::get,
 };
 use tower_http::cors::CorsLayer;
 
@@ -21,11 +21,15 @@ pub async fn health_check(State(_state): State<Shared>) -> &'static str {
     "OK"
 }
 
-
 pub fn build_app(state: Arc<AppState>) -> Router {
     let privy_header = HeaderName::from_static("privy-id-token");
+    //take from env variable
+    let origin = std::env::var("CORS_ALLOW_ORIGIN")
+        .map_err(|_| "CORS_ALLOW_ORIGIN not set")
+        .unwrap();
+    let allow_origin = HeaderValue::from_str(&origin).unwrap();
     let cors = CorsLayer::new()
-        .allow_origin("http://localhost:3000".parse::<HeaderValue>().unwrap())
+        .allow_origin(allow_origin)
         .allow_methods([Method::GET, Method::POST, Method::DELETE, Method::PUT])
         .allow_headers([AUTHORIZATION, ACCEPT, CONTENT_TYPE, privy_header])
         .allow_credentials(true);

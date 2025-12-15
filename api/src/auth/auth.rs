@@ -17,15 +17,7 @@ pub async fn auth_middleware(
 ) -> Result<Response, StatusCode> {
     // dbg!("Auth middleware triggered");
     let auth_header = headers.get("privy-id-token").and_then(|v| v.to_str().ok());
-    let access_token = headers
-        .get("authorization")
-        .and_then(|v| v.to_str().ok())
-        .and_then(|v| v.strip_prefix("Bearer "));
     let token = match auth_header {
-        Some(c) => c.to_string(),
-        None => return Err(StatusCode::UNAUTHORIZED),
-    };
-    let access_token = match access_token {
         Some(c) => c.to_string(),
         None => return Err(StatusCode::UNAUTHORIZED),
     };
@@ -97,7 +89,6 @@ pub async fn auth_middleware(
     let name = name.unwrap_or_default();
 
     let auth_user = AuthUser {
-        access_token,
         wallet_id,
         email,
         name,
