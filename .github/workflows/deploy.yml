@@ -21,7 +21,12 @@ jobs:
 
             cd /root/Predix-backend
 
+            # Load Rust
             source $HOME/.cargo/env
+
+            # Load Node / PM2 (IMPORTANT)
+            export NVM_DIR="$HOME/.nvm"
+            source "$NVM_DIR/nvm.sh"
 
             echo "Pulling latest code..."
             git pull origin main
