@@ -9,7 +9,6 @@ use std::env;
 
 use crate::models::auth::{AuthUser, PrivyClaims, RawClaims};
 
-
 pub async fn auth_middleware(
     headers: HeaderMap,
     mut req: Request,
@@ -21,14 +20,19 @@ pub async fn auth_middleware(
         Some(c) => c.to_string(),
         None => return Err(StatusCode::UNAUTHORIZED),
     };
-    let public_key = env::var("PRIVY_VERIFICATION_PEM")
+    let key_body = env::var("PRIVY_VERIFICATION_PEM")
         .expect("PRIVY_VERIFICATION_PEM environment variable not set");
+    let pem = format!(
+        "-----BEGIN PUBLIC KEY-----\n{}\n-----END PUBLIC KEY-----",
+        key_body
+    );
+
     let app_id = env::var("PRIVY_APP_ID").expect("PRIVY_APP_ID environment variable not set");
     let mut validation = Validation::new(Algorithm::ES256);
     validation.set_issuer(&["privy.io"]);
     validation.set_audience(&[&app_id]);
 
-    let decoding_key = DecodingKey::from_ec_pem(public_key.as_bytes()).expect("Invalid public key");
+    let decoding_key = DecodingKey::from_ec_pem(pem.as_bytes()).expect("Invalid public key");
 
     let token_data =
         decode::<RawClaims>(&token, &decoding_key, &validation).expect("Token verification failed");
