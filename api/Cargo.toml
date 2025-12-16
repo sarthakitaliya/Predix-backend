@@ -21,6 +21,7 @@ base64.workspace = true
 bincode.workspace = true
 chrono.workspace = true
 sqlx.workspace = true
+reqwest.workspace = true
 matching = {path = "../matching"}
 anchor-client-sdk = {path = "../anchor-client-sdk"}
 db = {path = "../db"}

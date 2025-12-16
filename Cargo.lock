@@ -389,6 +389,7 @@ dependencies = [
  "dotenvy",
  "jsonwebtoken",
  "matching",
+ "reqwest",
  "rust_decimal",
  "serde",
  "serde_json",

@@ -44,3 +44,17 @@ pub struct AuthUser {
     pub solana_address: String,
     pub is_admin: bool,
 }
+
+#[derive(Debug, Deserialize)]
+pub struct Jwks {
+    pub keys: Vec<Jwk>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Jwk {
+    pub kid: String,
+    pub x: String,
+    pub y: String,
+    pub crv: String,
+    pub kty: String,
+}
