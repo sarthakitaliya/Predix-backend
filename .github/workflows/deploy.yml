@@ -1,0 +1,35 @@
+name: Deploy Predix Backend (Build on VM)
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: SSH into VM and deploy
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            set -e
+
+            cd /root/Predix-backend
+
+            echo "Pulling latest code..."
+            git pull origin main
+
+            echo "Building release..."
+            cargo build --release
+
+            echo "Restarting PM2 services..."
+            pm2 restart predix-api
+            pm2 restart predix-event-listener
+            pm2 save
+
+            echo "Deploy finished"
