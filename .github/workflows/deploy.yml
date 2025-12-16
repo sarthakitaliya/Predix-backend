@@ -21,6 +21,8 @@ jobs:
 
             cd /root/Predix-backend
 
+            source $HOME/.cargo/env
+
             echo "Pulling latest code..."
             git pull origin main
 
