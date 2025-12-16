@@ -28,7 +28,7 @@ declare_program!(predix_program);
 async fn main() -> anyhow::Result<()> {
     from_path(Path::new("../.env")).ok();
 
-    let rpc_url = env::var("SOLANA_RPC_URL")?;
+    let rpc_url = env::var("SOLANA_RPC_URL").expect("SOLANA_RPC_URL must be set");
     let rpc = RpcClient::new_with_commitment(rpc_url, CommitmentConfig::confirmed());
     let payer_private_key =
         env::var("FEE_PAYER_PRIVATE_KEY").expect("FEE_PAYER_PRIVATE_KEY must be set");
