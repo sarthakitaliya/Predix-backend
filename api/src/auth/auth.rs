@@ -9,7 +9,6 @@ use std::env;
 
 use crate::models::auth::{AuthUser, Jwks, PrivyClaims, RawClaims};
 
-
 pub async fn auth_middleware(
     headers: HeaderMap,
     mut req: Request,
@@ -21,7 +20,9 @@ pub async fn auth_middleware(
         Some(c) => c.to_string(),
         None => return Err(StatusCode::UNAUTHORIZED),
     };
+    dbg!("Token extracted:", &token);
     let header = decode_header(&token).map_err(|_| StatusCode::UNAUTHORIZED)?;
+    dbg!("Decoded header:", &header);
     let kid = header.kid.ok_or(StatusCode::UNAUTHORIZED)?;
     let app_id = env::var("PRIVY_APP_ID").unwrap();
     let jwks_url = format!("https://auth.privy.io/api/v1/apps/{}/jwks.json", app_id);
@@ -36,12 +37,12 @@ pub async fn auth_middleware(
         .into_iter()
         .find(|k| k.kid == kid)
         .ok_or(StatusCode::UNAUTHORIZED)?;
-
+    dbg!("JWK found:", &jwk);
     let app_id = env::var("PRIVY_APP_ID").expect("PRIVY_APP_ID environment variable not set");
     let mut validation = Validation::new(Algorithm::ES256);
     validation.set_issuer(&["privy.io"]);
     validation.set_audience(&[&app_id]);
-
+    dbg!("Validation params:", &validation);
     let decoding_key =
         DecodingKey::from_ec_components(&jwk.x, &jwk.y).map_err(|_| StatusCode::UNAUTHORIZED)?;
     let token_data =
@@ -58,6 +59,7 @@ pub async fn auth_middleware(
         },
         custom_metadata: token_data.claims.custom_metadata,
     };
+    dbg!("Privy claims:", &data);
     // return error if no linked accounts
     if data.linked_accounts.is_empty() {
         dbg!("No linked accounts found");
@@ -84,23 +86,15 @@ pub async fn auth_middleware(
         .find(|acc| acc.account_type == "wallet" && acc.chain_type.as_deref() == Some("solana"))
         .and_then(|acc| acc.id.clone());
     // Check if required fields are available before constructing AuthUser
-    let email = match email {
-        Some(e) => e,
-        None => return Err(StatusCode::UNAUTHORIZED),
-    };
-    let is_admin = email == env::var("ADMIN_EMAIL").unwrap_or_default();
+    // Return empty response if any are missing
 
+    let is_admin = email
+        .as_deref()
+        .is_some_and(|e| e == env::var("ADMIN_EMAIL").unwrap_or_default());
     let solana_address = match solana_address {
         Some(addr) => addr,
         None => return Err(StatusCode::UNAUTHORIZED),
     };
-
-    let wallet_id = match wallet_id {
-        Some(id) => id,
-        None => return Err(StatusCode::UNAUTHORIZED),
-    };
-
-    let name = name.unwrap_or_default();
 
     let auth_user = AuthUser {
         wallet_id,
@@ -109,6 +103,7 @@ pub async fn auth_middleware(
         solana_address,
         is_admin,
     };
+    dbg!("Authenticated user:", &auth_user);
     req.extensions_mut().insert(auth_user);
     Ok(next.run(req).await)
 }

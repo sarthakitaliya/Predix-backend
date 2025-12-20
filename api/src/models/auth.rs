@@ -38,9 +38,9 @@ pub struct LinkedAccount {
 
 #[derive(Debug, Clone)]
 pub struct AuthUser {
-    pub wallet_id: String,
-    pub email: String,
-    pub name: String,
+    pub wallet_id: Option<String>,
+    pub email: Option<String>,
+    pub name: Option<String>,
     pub solana_address: String,
     pub is_admin: bool,
 }
