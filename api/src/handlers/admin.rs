@@ -1,11 +1,13 @@
 use std::{env, str::FromStr};
 
 use axum::{Extension, Json, extract::State, http::StatusCode};
-use db::{models::market::MarketOutcome};
+use db::models::market::MarketOutcome;
 use solana_sdk::pubkey::Pubkey;
+use tokio::sync::mpsc;
 use uuid::Uuid;
 
 use crate::{
+    engine::engine::{EngineMsg, run_market_engine},
     models::{
         admin::{
             CreateMarketRequest, CreateMarketResponse, GetAllMarketsResponse, ResolveMarketRequest,
@@ -65,6 +67,12 @@ pub async fn create_market(
                 format!("Failed to create market: {}", e),
             )
         })?;
+    let mut markets = state.markets.write().await;
+
+    let (tx, rx) = mpsc::channel::<EngineMsg>(100);
+    tokio::spawn(run_market_engine(rx));
+    markets.insert(market_id, tx.clone());
+    drop(markets);
 
     Ok(Json(CreateMarketResponse {
         market_id: market_id,
